@@ -28,7 +28,7 @@ contract DAO is
     }
 
     function votingPeriod() public pure override returns (uint256) {
-        return 45818; // ~1 week (assuming 15s blocks)
+        return 10; // ~2-3 minutes for demo (assuming 15s blocks)
     }
 
     function proposalThreshold() public pure override returns (uint256) {

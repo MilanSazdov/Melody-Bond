@@ -15,7 +15,7 @@ contract Deploy is Script {
 
     uint256 public constant TIMELOCK_MIN_DELAY = 60; 
 
-    uint256 public constant PAYMASTER_FUND_AMOUNT = 0.04 ether;
+    uint256 public constant PAYMASTER_FUND_AMOUNT = 1 ether;
 
     function run() external {
 
