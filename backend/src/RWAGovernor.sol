@@ -112,7 +112,7 @@ contract RWAGovernor is
     }
 
     function votingPeriod() public pure override returns (uint256) {
-        return 10;
+        return 120;
         // 10 blocks (adjust as needed)
     }
 
@@ -133,5 +133,57 @@ contract RWAGovernor is
 
     function CLOCK_MODE() public view virtual override returns (string memory) {
         return "mode=timestamp";
+    }
+
+    /**
+     * @dev Helper funkcija za kreiranje predloga za distribuciju profita.
+     * Kreira predlog u 2 koraka:
+     * 1. Naredi TBA novčaniku da odobri (approve) Distributeru da povuče tokene.
+     * 2. Naredi TBA novčaniku da pozove distribute() na Distributer ugovoru.
+     *
+     * @param distributorAddress Adresa deploy-ovanog Distributor ugovora.
+     * @param tokenAddress Adresa ERC20 tokena koji se deli (npr. MockUSDC).
+     * @param amount Iznos tokena za distribuciju (u najmanjim jedinicama, npr. 100 * 10**6).
+     */
+    function proposeProfitDistribution(
+        address distributorAddress,
+        address tokenAddress,
+        uint256 amount
+    ) external returns (uint256 proposalId) {
+        
+        // 1. Pripremi calldata za "approve(address,uint256)"
+        bytes memory calldataApprove = abi.encodeWithSignature(
+            "approve(address,uint256)",
+            distributorAddress,
+            amount
+        );
+
+        // 2. Pripremi calldata za "distribute(uint256,uint256,address)"
+        bytes memory calldataDistribute = abi.encodeWithSignature(
+            "distribute(uint256,uint256,address)",
+            nftId, // ID ovog NFT-a je već sačuvan u ugovoru
+            amount,
+            tokenAddress
+        );
+
+        // 3. Spakuj obe akcije u jedan predlog
+        address[] memory targets = new address[](2);
+        targets[0] = tokenAddress;
+        targets[1] = distributorAddress;
+
+        uint256[] memory values = new uint256[](2);
+        // Obe akcije su bez slanja ETH
+        values[0] = 0;
+        values[1] = 0;
+
+        bytes[] memory calldatas = new bytes[](2);
+        calldatas[0] = calldataApprove;
+        calldatas[1] = calldataDistribute;
+
+        string memory description = "Predlog za distribuciju profita investitorima.";
+
+        // 4. Pozovi standardnu 'propose' funkciju sa ovim podacima
+        // Provera da li je msg.sender investitor se dešava unutar super.propose
+        return super.propose(targets, values, calldatas, description);
     }
 }
