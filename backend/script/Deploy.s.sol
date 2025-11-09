@@ -32,11 +32,12 @@ contract Deploy is Script {
         GovToken govToken = new GovToken(deployerAddress);
         console.log("GovToken deployed at:", address(govToken));
 
-        // --- Deploy main Timelock ---
-        address[] memory proposers = new address[](1);
-        address[] memory executors = new address[](1);
-        proposers[0] = address(0); // Will be set to DAO later
-        executors[0] = address(0);
+    // --- Deploy main Timelock ---
+    // Use empty proposers array to avoid granting open (address(0)) proposer/canceller role.
+    // Keep executors open (address(0)) so any address can execute queued ops after delay.
+    address[] memory proposers = new address[](0);
+    address[] memory executors = new address[](1);
+    executors[0] = address(0); // open execution
         Timelock mainTimelock = new Timelock(
             1 days, // 1-day minimum delay for the main DAO
             proposers,
@@ -89,26 +90,39 @@ contract Deploy is Script {
 
         console.log("Setting up roles and ownerships...");
         
-        // Set DAO as the sole PROPOSER on the main Timelock
-        bytes32 proposerRole = mainTimelock.PROPOSER_ROLE();
-        mainTimelock.grantRole(proposerRole, address(dao));
-        
-        // Renounce admin role from the deployer (transfer it to the Timelock itself)
-    // Use DEFAULT_ADMIN_ROLE in OZ v5
-    bytes32 adminRole = mainTimelock.DEFAULT_ADMIN_ROLE(); 
-        mainTimelock.renounceRole(adminRole, deployerAddress);
-        console.log("Main Timelock configured.");
+    // Configure roles with helper to avoid stack-too-deep
+    _setupTimelockRoles(mainTimelock, address(dao), deployerAddress);
 
         // Transfer ownership of RWA.sol to DAO
         // (so that DAO can mint NFTs)
-        rwaNft.transferOwnership(address(dao));
-        console.log("RWA ownership transferred to DAO."); 
+    rwaNft.transferOwnership(address(dao));
+    require(rwaNft.owner() == address(dao), "RWA owner not DAO");
+    console.log("RWA ownership transferred to DAO."); 
 
         // Transfer ownership of GovToken.sol to DAO
         // (so that DAO can mint GOV tokens to the treasury)
-        govToken.transferOwnership(address(dao));
-        console.log("GovToken ownership transferred to DAO."); 
+    govToken.transferOwnership(address(dao));
+    require(govToken.owner() == address(dao), "GovToken owner not DAO");
+    console.log("GovToken ownership transferred to DAO."); 
 
         vm.stopBroadcast();
+    }
+
+    function _setupTimelockRoles(
+        Timelock mainTimelock,
+        address daoAddr,
+        address deployerAddr
+    ) internal {
+        bytes32 proposerRole = mainTimelock.PROPOSER_ROLE();
+        bytes32 cancellerRole = mainTimelock.CANCELLER_ROLE();
+        mainTimelock.grantRole(proposerRole, daoAddr);
+        mainTimelock.grantRole(cancellerRole, daoAddr);
+        require(mainTimelock.hasRole(proposerRole, daoAddr), "DAO proposer role failed");
+        require(mainTimelock.hasRole(cancellerRole, daoAddr), "DAO canceller role failed");
+
+        bytes32 adminRole = mainTimelock.DEFAULT_ADMIN_ROLE();
+        mainTimelock.renounceRole(adminRole, deployerAddr);
+        require(!mainTimelock.hasRole(adminRole, deployerAddr), "Admin renounce failed");
+        console.log("Timelock roles configured. DAO is proposer & canceller; deployer renounced admin.");
     }
 }
