@@ -179,6 +179,10 @@ contract DAO is
         rwaDaos[nftId] = newGovernor;
         isRWAGovernor[newGovernor] = true;
 
+        // CRITICAL: Transfer NFT ownership to the Governor so it can control the TBA
+        // ERC-6551 TBAs derive authority from the NFT owner, so the Governor must own the NFT
+        rwaNftContract.safeTransferFrom(daoTreasury, newGovernor, nftId);
+
         // Attempt to transfer ownership of the wallet (TBA) to RWAGovernor if the implementation is Ownable.
         // Many ERC-6551 reference accounts are not Ownable and derive authority from the NFT owner instead.
         // If the TBA is not Ownable, this call will revert and be safely ignored here; ensure your TBA

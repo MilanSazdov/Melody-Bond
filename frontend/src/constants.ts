@@ -8,6 +8,7 @@
 //   import DAOArtifact from './abis/DAO.sol/DAO.json'
 
 // --- Sepolia Contract Addresses (Updated with your new deployments) ---
+export const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || '9594216');
 export const GOV_TOKEN_ADDRESS = '0xb0231d9dC68C4C320d121237fE8De00ab5899dBE' as const;
 export const TIMELOCK_ADDRESS = '0x417875AD8Af4DE85325DC1Ea09A719ea16254dDD' as const;
 export const DAO_ADDRESS = '0x132AD6fB8EaF3065C831Febf5788AbDa4B72c76C' as const;
@@ -80,17 +81,23 @@ export const DAO_ABI = [
 	{ type: 'function', name: 'rwaProposals', inputs: [
 			{ name: 'proposalId', type: 'uint256' },
 		], outputs: [
-			{ name: 'id', type: 'uint256' },
-			{ name: 'proposer', type: 'address' },
-			{ name: 'targetUSDC', type: 'uint256' },
-			{ name: 'raisedUSDC', type: 'uint256' },
-			{ name: 'deadline', type: 'uint256' },
-			{ name: 'nftMetadataURI', type: 'string' },
-			{ name: 'state', type: 'uint8' },
+			{
+				type: 'tuple',
+				components: [
+					{ name: 'id', type: 'uint256' },
+					{ name: 'proposer', type: 'address' },
+					{ name: 'targetUSDC', type: 'uint256' },
+					{ name: 'raisedUSDC', type: 'uint256' },
+					{ name: 'deadline', type: 'uint256' },
+					{ name: 'nftMetadataURI', type: 'string' },
+					{ name: 'state', type: 'uint8' },
+				],
+			},
 		], stateMutability: 'view' },
 	{ type: 'function', name: 'getInvestorList', inputs: [
 			{ name: 'proposalId', type: 'uint256' },
 		], outputs: [{ name: '', type: 'address[]' }], stateMutability: 'view' },
+	{ type: 'function', name: 'nextRWAProposalId', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
 ] as const;
 
 export const RWA_ABI = [
@@ -268,6 +275,20 @@ export const RWA_GOVERNOR_ABI = [
 		{ name: 'support', type: 'uint8', indexed: false },
 		{ name: 'weight', type: 'uint256', indexed: false },
 		{ name: 'reason', type: 'string', indexed: false }
+	] },
+	{ type: 'event', name: 'Invested', inputs: [
+		{ name: 'proposalId', type: 'uint256', indexed: true },
+		{ name: 'investor', type: 'address', indexed: true },
+		{ name: 'amount', type: 'uint256', indexed: false }
+	] },
+	{ type: 'event', name: 'ProposalFinalized', inputs: [
+		{ name: 'proposalId', type: 'uint256', indexed: true },
+		{ name: 'newState', type: 'uint8', indexed: false }
+	] },
+	{ type: 'event', name: 'RWADeployed', inputs: [
+		{ name: 'nftId', type: 'uint256', indexed: true },
+		{ name: 'governor', type: 'address', indexed: false },
+		{ name: 'tba', type: 'address', indexed: false }
 	] },
 ] as const;
 

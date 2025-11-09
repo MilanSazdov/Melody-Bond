@@ -6,6 +6,7 @@ import {
   MOCK_USDC_ADDRESS,
   ERC6551_REGISTRY_ADDRESS,
   ERC6551_IMPLEMENTATION_ADDRESS,
+  DEPLOY_BLOCK,
   DAO_ABI,
   RWA_ABI,
   RWA_GOVERNOR_ABI,
@@ -13,6 +14,47 @@ import {
   ERC20_ABI,
   DISTRIBUTOR_ABI
 } from '../constants'
+
+/**
+ * Parse metadata from various URI formats (data URIs, IPFS, HTTP)
+ */
+async function parseMetadataURI(uri: string): Promise<{ name?: string; image?: string; description?: string }> {
+  if (!uri) return {}
+  
+  try {
+    let metadata;
+    
+    // Handle data:application/json;base64,... format
+    if (uri.startsWith('data:application/json;base64,')) {
+      const base64Data = uri.slice('data:application/json;base64,'.length);
+      const jsonString = atob(base64Data);
+      metadata = JSON.parse(jsonString);
+    }
+    // Handle data:application/json,... format (URL-encoded JSON)
+    else if (uri.startsWith('data:application/json,')) {
+      const jsonStr = uri.slice('data:application/json,'.length);
+      const decoded = decodeURIComponent(jsonStr);
+      metadata = JSON.parse(decoded);
+    }
+    // Handle HTTP/IPFS URLs
+    else if (uri.startsWith('http://') || uri.startsWith('https://') || uri.startsWith('ipfs://')) {
+      const fetchUrl = uri.startsWith('ipfs://') 
+        ? uri.replace('ipfs://', 'https://ipfs.io/ipfs/')
+        : uri;
+      const res = await fetch(fetchUrl);
+      metadata = await res.json();
+    }
+    
+    return {
+      name: metadata?.name,
+      image: metadata?.image,
+      description: metadata?.description
+    };
+  } catch (err) {
+    console.warn('[Metadata] Failed to parse URI:', uri, err);
+    return {};
+  }
+}
 
 export type RWAInvestment = {
   nftId: bigint
@@ -40,65 +82,167 @@ export type RWAProposal = {
 }
 
 /**
- * Get all RWA NFTs that a user has invested in
+ * Parse full metadata JSON from a tokenURI that may be:
+ * - data:application/json;base64,<base64>
+ * - data:application/json,<url-encoded-json>
+ * - http(s) or ipfs:// URL
+ */
+export async function parseFullMetadata(uri: string): Promise<Record<string, any>> {
+  if (!uri) return {};
+  try {
+    if (uri.startsWith('data:application/json;base64,')) {
+      const base64Data = uri.slice('data:application/json;base64,'.length);
+      const jsonString = typeof atob !== 'undefined' ? atob(base64Data) : Buffer.from(base64Data, 'base64').toString('utf8');
+      return JSON.parse(jsonString);
+    }
+    if (uri.startsWith('data:application/json,')) {
+      const jsonStr = uri.slice('data:application/json,'.length);
+      const decoded = decodeURIComponent(jsonStr);
+      return JSON.parse(decoded);
+    }
+    if (uri.startsWith('ipfs://') || uri.startsWith('http://') || uri.startsWith('https://')) {
+      const url = uri.startsWith('ipfs://') ? uri.replace('ipfs://', 'https://ipfs.io/ipfs/') : uri;
+      const res = await fetch(url);
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('[Metadata] parseFullMetadata failed for', uri, err);
+  }
+  return {};
+}
+
+function buildDataJsonURI(obj: Record<string, any>): string {
+  try {
+    const json = JSON.stringify(obj);
+    return `data:application/json,${encodeURIComponent(json)}`;
+  } catch {
+    return `data:application/json,${encodeURIComponent('{}')}`;
+  }
+}
+
+/**
+ * Build a merged metadata URI, preserving existing fields and updating only provided ones.
+ */
+export async function buildMergedMetadataURI(currentUri: string, updates: { name?: string; image?: string; description?: string }): Promise<string> {
+  const current = await parseFullMetadata(currentUri).catch(() => ({}));
+  const merged: Record<string, any> = { ...current };
+  if (typeof updates.name !== 'undefined') merged.name = updates.name;
+  if (typeof updates.image !== 'undefined') merged.image = updates.image;
+  if (typeof updates.description !== 'undefined') merged.description = updates.description;
+  return buildDataJsonURI(merged);
+}
+
+/**
+ * Get all RWA NFTs that a user has invested in (both active proposals and finalized NFTs)
  */
 export async function getUserRWAInvestments(
   publicClient: PublicClient,
   userAddress: Address
 ): Promise<RWAInvestment[]> {
   try {
-    // First, get total supply of RWA NFTs
-    const totalSupply = await publicClient.readContract({
-      address: RWA_ADDRESS,
-      abi: RWA_ABI,
-      functionName: 'totalSupply',
-    }) as bigint
-
     const investments: RWAInvestment[] = []
 
-    // Check each NFT for user's shares
-    for (let i = 0; i < Number(totalSupply); i++) {
-      const nftId = BigInt(i)
-      
-      // Get user's shares in this NFT
-      const shares = await publicClient.readContract({
+    // NEW STRATEGY: Scan minted NFT IDs directly instead of iterating proposals.
+    // Rationale: The public struct getter `rwaProposals(uint256)` sometimes returns no data ("0x")
+    // for certain IDs due to ABI/frontend mismatch or an uninitialized struct with dynamic members.
+    // Minted NFTs imply executed proposals because _executeSuccess() sets proposal.state=Executed
+    // immediately after mint + governor deployment.
+
+    // Heuristic upper bound: attempt up to nextRWAProposalId (if available) or fallback to 50.
+    let upperBound = 50n
+    try {
+      const nextProposalId = await publicClient.readContract({
         address: DAO_ADDRESS,
         abi: DAO_ABI,
-        functionName: 'rwaShares',
-        args: [nftId, userAddress],
+        functionName: 'nextRWAProposalId'
       }) as bigint
+      // Minted NFT ids start at 0 and increment only when proposals succeed.
+      // We can't infer exact supply because RWA.sol has no totalSupply in deployed version.
+      // Use nextProposalId as a safe upper exploration bound (can't exceed number of proposals).
+      upperBound = nextProposalId > 0n ? nextProposalId + 5n : 50n // small cushion
+      console.log('[RWA] Using upperBound', upperBound.toString(), 'derived from nextProposalId', nextProposalId.toString())
+    } catch (e) {
+      console.warn('[RWA] Could not read nextRWAProposalId. Falling back to default upperBound', upperBound.toString())
+    }
 
-      if (shares > 0n) {
-        // User has invested in this NFT
+    for (let nftId = 0n; nftId < upperBound; nftId++) {
+      try {
+        // Check if governor exists for this NFT (indicates successful execution)
         const governorAddress = await publicClient.readContract({
           address: DAO_ADDRESS,
           abi: DAO_ABI,
           functionName: 'rwaDaos',
-          args: [nftId],
+          args: [nftId]
         }) as Address
 
-        // Calculate TBA address
-        const tbaAddress = await getTBAAddress(publicClient, nftId)
+        if (governorAddress === '0x0000000000000000000000000000000000000000') {
+          continue // Not a deployed RWA governor; skip
+        }
 
-        // Get metadata
-        const uri = await publicClient.readContract({
-          address: RWA_ADDRESS,
-          abi: RWA_ABI,
-          functionName: 'tokenURI',
-          args: [nftId],
-        }) as string
+        // Read user shares; if zero skip
+        let shares: bigint = 0n
+        try {
+          shares = await publicClient.readContract({
+            address: DAO_ADDRESS,
+            abi: DAO_ABI,
+            functionName: 'rwaShares',
+            args: [nftId, userAddress]
+          }) as bigint
+        } catch (shareErr) {
+          // Treat errors ("0x" returns) as zero shares
+          shares = 0n
+        }
+
+        if (shares === 0n) continue
+
+        // Fetch tokenURI (skip if token does not exist)
+        let uri = ''
+        try {
+          uri = await publicClient.readContract({
+            address: RWA_ADDRESS,
+            abi: RWA_ABI,
+            functionName: 'tokenURI',
+            args: [nftId]
+          }) as string
+        } catch (uriErr) {
+          console.warn('[RWA] tokenURI unavailable for NFT', nftId.toString(), uriErr)
+        }
+
+        // Derive TBA address using deterministic salt
+        let tbaAddress: Address = '0x0000000000000000000000000000000000000000'
+        try {
+          tbaAddress = await getTBAAddress(publicClient, nftId)
+        } catch (tbaErr) {
+          console.warn('[RWA] TBA lookup failed for NFT', nftId.toString(), tbaErr)
+        }
+
+        // Parse metadata to extract name and image
+        let parsedMetadata: { name?: string; image?: string } = {}
+        try {
+          parsedMetadata = await parseMetadataURI(uri)
+        } catch (metaErr) {
+          console.warn('[RWA] Metadata parse failed for NFT', nftId.toString(), metaErr)
+        }
 
         investments.push({
           nftId,
           shares,
           governorAddress,
           tbaAddress,
-          metadata: {
+          metadata: { 
             uri,
-          },
+            name: parsedMetadata.name,
+            image: parsedMetadata.image
+          }
         })
+      } catch (err) {
+        // Likely out-of-range or unreadable; continue scanning
+        continue
       }
     }
+
+    console.log('[RWA] 📊 Total investments found via NFT scan:', investments.length)
+    console.log('[RWA] Investment details:', investments.map(i => ({ nftId: i.nftId.toString(), shares: i.shares.toString() })))
 
     return investments
   } catch (error) {
@@ -109,11 +253,23 @@ export async function getUserRWAInvestments(
 
 /**
  * Get TBA address for an RWA NFT
+ * Must match the salt calculation in DAO.sol: keccak256(nftId, chainid)
  */
 export async function getTBAAddress(
   publicClient: PublicClient,
   nftId: bigint
 ): Promise<Address> {
+  const chainId = BigInt(11155111) // Sepolia
+  
+  // Calculate salt the same way as DAO.sol: keccak256(nftId, chainId)
+  // Pack nftId and chainId as two uint256 values (64 bytes total)
+  const nftIdHex = toHex(nftId, { size: 32 })
+  const chainIdHex = toHex(chainId, { size: 32 })
+  const packedData = (nftIdHex + chainIdHex.slice(2)) as Hex // Concatenate, remove 0x from second
+  const salt = keccak256(packedData)
+
+  console.log('[TBA] Calculating TBA for NFT', nftId.toString(), 'with salt', salt)
+
   const tbaAddress = await publicClient.readContract({
     address: ERC6551_REGISTRY_ADDRESS,
     abi: [
@@ -122,10 +278,10 @@ export async function getTBAAddress(
         name: 'account',
         inputs: [
           { name: 'implementation', type: 'address' },
+          { name: 'salt', type: 'bytes32' },
           { name: 'chainId', type: 'uint256' },
           { name: 'tokenContract', type: 'address' },
           { name: 'tokenId', type: 'uint256' },
-          { name: 'salt', type: 'uint256' },
         ],
         outputs: [{ type: 'address' }],
         stateMutability: 'view',
@@ -134,10 +290,10 @@ export async function getTBAAddress(
     functionName: 'account',
     args: [
       ERC6551_IMPLEMENTATION_ADDRESS,
-      BigInt(11155111), // Sepolia chain ID
+      salt,
+      chainId,
       RWA_ADDRESS,
       nftId,
-      BigInt(0), // Default salt
     ],
   }) as Address
 
@@ -163,7 +319,7 @@ export function buildChangeNameProposal(nftId: bigint, newMetadataURI: string): 
     targets: [RWA_ADDRESS],
     values: [0n],
     calldatas: [setTokenURIData],
-    description: `Change metadata for RWA #${nftId} to ${newMetadataURI}`,
+    description: `Change name for RWA #${nftId}`,
   }
 }
 

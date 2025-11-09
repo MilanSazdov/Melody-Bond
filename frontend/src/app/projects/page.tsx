@@ -191,12 +191,33 @@ export default function ProjectsPage() {
         if (!isMounted) break;
         if (p.nftMetadataURI) {
           try {
-            const res = await fetch(p.nftMetadataURI);
-            const meta = await res.json();
+            console.log('[Projects] Fetching metadata for proposal', p.id.toString(), 'from', p.nftMetadataURI);
+            
+            let meta;
+            // Handle data URIs
+            if (p.nftMetadataURI.startsWith('data:application/json;base64,')) {
+              // Base64 encoded
+              const base64Data = p.nftMetadataURI.replace('data:application/json;base64,', '');
+              const jsonString = atob(base64Data);
+              meta = JSON.parse(jsonString);
+            } else if (p.nftMetadataURI.startsWith('data:application/json,')) {
+              // Plain JSON (URL-encoded)
+              const jsonStr = p.nftMetadataURI.slice('data:application/json,'.length);
+              const decoded = decodeURIComponent(jsonStr);
+              meta = JSON.parse(decoded);
+            } else {
+              // Handle regular URLs (IPFS, HTTP, etc.)
+              const res = await fetch(p.nftMetadataURI);
+              meta = await res.json();
+            }
+            
+            console.log('[Projects] Loaded metadata:', meta);
             if (isMounted) setMetadata(prev => ({ ...prev, [p.id.toString()]: meta }));
           } catch (e) {
-            console.warn('[Projects] metadata load failed', e);
+            console.warn('[Projects] metadata load failed for proposal', p.id.toString(), e);
           }
+        } else {
+          console.log('[Projects] No metadata URI for proposal', p.id.toString());
         }
       }
     } catch (error) {
@@ -425,9 +446,23 @@ export default function ProjectsPage() {
 
             return (
               <div key={proposal.id.toString()} className="border border-gray-700 rounded-lg overflow-hidden shadow-lg bg-gray-800 relative">
-                {meta?.image && (
-                  <img src={meta.image} alt={meta.name} className="w-full h-48 object-cover" />
-                )}
+                <div className="w-full h-48 bg-gray-700 flex items-center justify-center overflow-hidden">
+                  {meta?.image ? (
+                    <img 
+                      src={meta.image} 
+                      alt={meta?.name || `Proposal #${proposal.id}`} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://via.placeholder.com/400x300/1f2937/9ca3af?text=RWA+Project';
+                      }}
+                    />
+                  ) : (
+                    <div className="text-gray-500 text-center p-4">
+                      <div className="text-4xl mb-2">🏢</div>
+                      <div className="text-sm">Loading image...</div>
+                    </div>
+                  )}
+                </div>
                 {pendingTx && (
                   <div className={`absolute top-2 right-2 px-3 py-1 rounded text-sm font-medium ${
                     pendingTx.status === 'pending' ? 'bg-blue-600 text-white animate-pulse' :
