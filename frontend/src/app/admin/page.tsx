@@ -65,157 +65,225 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-400">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 bg-gray-800 p-6 rounded-lg">
-          <h1 className="text-4xl font-bold mb-2 text-white">Admin Panel</h1>
-          <p className="text-gray-300">Monitor the Paymaster Wallet for gasless transactions</p>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden border-b border-gray-700 bg-gradient-to-b from-gray-950 via-gray-900 to-gray-950 py-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-900/30 border border-purple-800/50 text-purple-400 text-sm font-medium mb-2">
+              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+              Admin Panel
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white">Paymaster Management</h1>
+            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+              Monitor and fund the Paymaster wallet that powers gasless transactions for the MelodyBond DAO
+            </p>
+          </div>
         </div>
+      </section>
 
-        <div className="max-w-2xl mx-auto space-y-6">
-          {/* Paymaster Balance Card */}
-          <div className="border border-gray-700 rounded-lg p-6 bg-gray-800">
-            <h2 className="text-2xl font-bold mb-4 text-white">Paymaster Wallet Status</h2>
-            
-            <div className="bg-gray-700 rounded-lg p-6 mb-4">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <p className="text-sm text-gray-400 mb-1">Paymaster Balance</p>
-                  <p className="text-3xl font-bold text-purple-400">
-                    {loading ? '...' : formatEther(paymasterBalance)} ETH
-                  </p>
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-5xl mx-auto space-y-8">
+          {/* Balance Overview - Large Display */}
+          <div className="bg-gradient-to-br from-purple-900/20 via-gray-800 to-blue-900/20 border border-purple-500/30 rounded-xl p-8 shadow-2xl">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center">
+                    <span className="text-2xl">💎</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400 font-medium">Current Balance</p>
+                    <h2 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-400">
+                      {loading ? '...' : formatEther(paymasterBalance)} ETH
+                    </h2>
+                  </div>
                 </div>
-                <button
-                  onClick={loadPaymasterBalance}
-                  disabled={loading}
-                  className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 disabled:opacity-50"
-                >
-                  {loading ? '⏳' : 'Refresh'}
-                </button>
-              </div>
-
-              {/* Paymaster Address */}
-              <div className="border-t border-gray-600 pt-4">
-                <p className="text-sm text-gray-400 mb-2">Paymaster Address</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 bg-gray-800 px-3 py-2 rounded text-sm text-purple-300 font-mono break-all">
-                    {PAYMASTER_ADDRESS}
-                  </code>
-                  <button
-                    onClick={copyAddress}
-                    className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 transition-colors"
-                    title="Copy address"
-                  >
-                    {copied ? '✓' : '📋'}
-                  </button>
+                <div className="flex items-center gap-2 mt-4">
+                  <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    Number(formatEther(paymasterBalance)) > 0.5 
+                      ? 'bg-green-900/50 text-green-300 border border-green-700' 
+                      : Number(formatEther(paymasterBalance)) > 0.1
+                      ? 'bg-yellow-900/50 text-yellow-300 border border-yellow-700'
+                      : 'bg-red-900/50 text-red-300 border border-red-700'
+                  }`}>
+                    {Number(formatEther(paymasterBalance)) > 0.5 
+                      ? '✓ Healthy' 
+                      : Number(formatEther(paymasterBalance)) > 0.1
+                      ? '⚠ Low Balance'
+                      : '⚠️ Critical - Refill Needed'}
+                  </div>
                 </div>
               </div>
+              <button
+                onClick={loadPaymasterBalance}
+                disabled={loading}
+                className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 flex items-center gap-2 justify-center"
+              >
+                {loading ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    <span>Refreshing...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔄</span>
+                    <span>Refresh Balance</span>
+                  </>
+                )}
+              </button>
             </div>
 
-            {/* Fund Paymaster Section */}
-            <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/50 rounded-lg p-6 mb-4">
-              <h3 className="text-lg font-bold mb-4 text-purple-300">💰 Fund Paymaster Wallet</h3>
-              <p className="text-sm text-gray-300 mb-4">
-                Send ETH to the paymaster so it can pay gas fees for user transactions
-              </p>
-              
-              <div className="flex gap-3 items-end">
+            {/* Paymaster Address */}
+            <div className="mt-6 pt-6 border-t border-gray-700">
+              <p className="text-sm text-gray-400 mb-2 font-medium">Paymaster Wallet Address</p>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <code className="flex-1 bg-gray-950/50 px-4 py-3 rounded-lg text-sm text-purple-300 font-mono break-all border border-gray-700">
+                  {PAYMASTER_ADDRESS}
+                </code>
+                <button
+                  onClick={copyAddress}
+                  className="px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-semibold flex items-center gap-2 justify-center"
+                  title="Copy address"
+                >
+                  <span>{copied ? '✓' : '📋'}</span>
+                  <span>{copied ? 'Copied!' : 'Copy'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Fund Paymaster Section */}
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-8 shadow-xl">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
+                <span className="text-xl">💰</span>
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Fund Paymaster</h3>
+                <p className="text-sm text-gray-400">Add ETH to enable gasless transactions</p>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/30 rounded-lg p-6 mb-6">
+              <div className="flex gap-4 items-end">
                 <div className="flex-1">
-                  <label className="block text-sm text-gray-400 mb-1">Amount (ETH)</label>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Amount (ETH)</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={fundAmount}
                     onChange={(e) => setFundAmount(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-purple-500"
+                    className="w-full px-4 py-3 bg-gray-950/50 border border-gray-600 rounded-lg text-white text-lg font-semibold focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/50 transition-all"
                     placeholder="0.1"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Recommended: 0.5 ETH or more</p>
                 </div>
                 <button
                   onClick={handleFundPaymaster}
                   disabled={!address || isPending || isConfirming}
-                  className="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105 active:scale-95"
                 >
-                  {isPending || isConfirming ? 'Sending...' : 'Send ETH'}
+                  {isPending || isConfirming ? '⏳ Sending...' : '🚀 Send ETH'}
                 </button>
               </div>
+            </div>
 
-              {hash && (
-                <div className="mt-3 p-3 bg-gray-800 rounded">
-                  <p className="text-xs text-gray-400">Transaction Hash:</p>
-                  <code className="text-xs text-green-400 break-all">{hash}</code>
-                  {isSuccess && (
-                    <p className="text-sm text-green-400 mt-2">✓ Transaction confirmed!</p>
-                  )}
+            {hash && (
+              <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
+                <p className="text-xs text-gray-400 font-semibold mb-1">Transaction Hash:</p>
+                <code className="text-xs text-green-400 break-all font-mono">{hash}</code>
+                {isSuccess && (
+                  <p className="text-sm text-green-400 mt-2 font-semibold">✓ Transaction confirmed successfully!</p>
+                )}
+              </div>
+            )}
+
+            {!address && (
+              <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4 flex items-start gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <p className="text-yellow-300 font-semibold">Wallet Not Connected</p>
+                  <p className="text-sm text-gray-300 mt-1">Please connect your wallet to fund the paymaster</p>
                 </div>
-              )}
-
-              {!address && (
-                <p className="mt-3 text-sm text-yellow-400">⚠️ Connect your wallet to fund the paymaster</p>
-              )}
-            </div>
-
-            <div className="bg-blue-900/20 border border-blue-500/50 rounded-lg p-4">
-              <h3 className="text-lg font-bold mb-2 text-blue-300">ℹ️ About the Paymaster</h3>
-              <p className="text-sm text-gray-300 mb-2">
-                The paymaster wallet pays gas fees for gasless transactions:
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-sm text-gray-300">
-                <li>✅ Voting on DAO proposals (DAO.castVote)</li>
-                <li>✅ Voting on RWA Governor proposals (RWAGovernor.castVote)</li>
-                <li>✅ Finalizing funded projects (DAO.finalizeProposal)</li>
-                <li>❌ Investments require user to pay gas (due to USDC approval)</li>
-              </ul>
-              <p className="text-sm text-yellow-300 mt-2">
-                ⚠️ Note: Users must pay gas for investments because the contract transfers USDC from their wallet.
-              </p>
-              <p className="text-sm text-gray-300 mt-1">
-                Keep this wallet funded to ensure smooth voting experience!
-              </p>
-            </div>
+              </div>
+            )}
           </div>
 
-          {/* Info Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-gray-700 rounded-lg p-4 bg-gray-800">
-              <h3 className="font-bold mb-2 text-white">Gasless Invest</h3>
+          {/* Info Grid */}
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-br from-green-900/20 to-gray-800 border border-green-700/50 rounded-xl p-6">
+              <div className="text-3xl mb-3">✅</div>
+              <h3 className="font-bold text-lg text-white mb-2">Gasless Voting</h3>
               <p className="text-sm text-gray-300">
-                Users can invest in RWA funding proposals without paying gas fees
+                DAO members vote on proposals without paying any gas fees
               </p>
             </div>
-            <div className="border border-gray-700 rounded-lg p-4 bg-gray-800">
-              <h3 className="font-bold mb-2 text-white">Gasless Voting</h3>
-                <p className="text-sm text-gray-300">
-                Both DAO and RWA Governor votes are paid for by the paymaster
+            <div className="bg-gradient-to-br from-blue-900/20 to-gray-800 border border-blue-700/50 rounded-xl p-6">
+              <div className="text-3xl mb-3">🎯</div>
+              <h3 className="font-bold text-lg text-white mb-2">Auto Finalization</h3>
+              <p className="text-sm text-gray-300">
+                Approved projects are finalized automatically with paymaster support
               </p>
             </div>
-            <div className="border border-gray-700 rounded-lg p-4 bg-gray-800">
-              <h3 className="font-bold mb-2 text-white">Gasless Finalization</h3>
-                <p className="text-sm text-gray-300">
-                Project finalization is also covered by the paymaster wallet
+            <div className="bg-gradient-to-br from-purple-900/20 to-gray-800 border border-purple-700/50 rounded-xl p-6">
+              <div className="text-3xl mb-3">⚡</div>
+              <h3 className="font-bold text-lg text-white mb-2">Instant Execution</h3>
+              <p className="text-sm text-gray-300">
+                Transactions execute immediately without waiting for user approvals
               </p>
             </div>
           </div>
 
-          {/* Sponsored Functions */}
-          <div className="border border-gray-700 rounded-lg p-6 bg-gray-800">
-            <h3 className="text-lg font-bold mb-4 text-white">Paymaster-Sponsored Functions</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between p-3 bg-gray-700 rounded">
-                <span className="font-mono text-gray-300">DAO.castVote(uint256,uint8)</span>
-                <span className="px-2 py-1 bg-green-900 text-green-200 rounded text-xs">GASLESS</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-700 rounded">
-                <span className="font-mono text-gray-300">RWAGovernor.castVote(uint256,uint8)</span>
-                <span className="px-2 py-1 bg-green-900 text-green-200 rounded text-xs">GASLESS</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-700 rounded">
-                <span className="font-mono text-gray-300">DAO.finalizeProposal(uint256)</span>
-                <span className="px-2 py-1 bg-green-900 text-green-200 rounded text-xs">GASLESS</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-gray-600/50 rounded border border-gray-500">
-                <span className="font-mono text-gray-400">DAO.invest(uint256,uint256)</span>
-                <span className="px-2 py-1 bg-yellow-900 text-yellow-200 rounded text-xs">USER PAYS GAS</span>
+          {/* About Section */}
+          <div className="bg-blue-900/10 border border-blue-500/30 rounded-xl p-8">
+            <div className="flex items-start gap-4">
+              <div className="text-4xl">ℹ️</div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-blue-300 mb-4">How the Paymaster Works</h3>
+                <p className="text-gray-300 mb-4">
+                  The paymaster wallet sponsors gas fees for specific smart contract operations, enabling a seamless user experience:
+                </p>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="bg-gray-900/50 rounded-lg p-4">
+                    <h4 className="text-green-400 font-bold mb-2 flex items-center gap-2">
+                      <span>✓</span>
+                      <span>Gasless Operations</span>
+                    </h4>
+                    <ul className="space-y-2 text-sm text-gray-300">
+                      <li className="flex items-start gap-2">
+                        <span className="text-green-400 mt-0.5">•</span>
+                        <span>DAO.castVote(uint256,uint8)</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-green-400 mt-0.5">•</span>
+                        <span>RWAGovernor.castVote(uint256,uint8)</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-green-400 mt-0.5">•</span>
+                        <span>DAO.finalizeProposal(uint256)</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="bg-gray-900/50 rounded-lg p-4">
+                    <h4 className="text-yellow-400 font-bold mb-2 flex items-center gap-2">
+                      <span>⚠</span>
+                      <span>User Pays Gas</span>
+                    </h4>
+                    <ul className="space-y-2 text-sm text-gray-300">
+                      <li className="flex items-start gap-2">
+                        <span className="text-yellow-400 mt-0.5">•</span>
+                        <span>DAO.invest(uint256,uint256)</span>
+                      </li>
+                      <li className="text-xs text-gray-400 ml-4 mt-1">
+                        Requires USDC transfer from user's wallet
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <p className="text-sm text-yellow-300 mt-4 bg-yellow-900/20 border border-yellow-700/50 rounded p-3">
+                  💡 <strong>Note:</strong> Keep the paymaster funded with at least 0.5 ETH to ensure smooth operations
+                </p>
               </div>
             </div>
           </div>
