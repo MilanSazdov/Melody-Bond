@@ -1,0 +1,74 @@
+# Node
+node_modules/
+
+# Next.js build output
+.next/
+.out/
+.build/
+
+# Local environment variables
+.env.local
+.env.*.local
+.env.*
+.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+coverage/
+.jest/
+
+# Yarn v2/v3 cache
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state/
+.yarn/install-state.gz
+
+# Misc
+dist/
+.cache/
+public/static/
+
+# Next.js telemetry
+.next/telemetry
+
+# Output from turbopack/experimental
+.turbopack/
+
+# Optional: keep lockfiles in repo, but ignore package manager state
+.pnpm-debug.log
+
+# Ignore local secret/keys (relayer private key etc.)
+REACT_APP_*
+*.pem
+*.key
+
+# Ignore temporary files
+*.tmp
+*.temp
+~*
+
+# Docker
+docker-compose.override.yml
+
+# Storybook
+.out-storybook/
