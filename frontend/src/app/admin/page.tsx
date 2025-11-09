@@ -5,11 +5,11 @@ import { useAccount, useSendTransaction, useWaitForTransactionReceipt } from 'wa
 import { formatEther, parseEther } from 'viem';
 import { getRelayerBalance } from '@/lib/accountAbstraction';
 
-const RELAYER_ADDRESS = '0xB2291BF9C008f964A566FBa701d6FBD9b2a93a81' as const;
+const PAYMASTER_ADDRESS = '0xB2291BF9C008f964A566FBa701d6FBD9b2a93a81' as const;
 
 export default function AdminPage() {
   const { address } = useAccount();
-  const [relayerBalance, setRelayerBalance] = useState<bigint>(BigInt(0));
+  const [paymasterBalance, setPaymasterBalance] = useState<bigint>(BigInt(0));
   const [loading, setLoading] = useState(false);
   const [fundAmount, setFundAmount] = useState('0.1');
   const [copied, setCopied] = useState(false);
@@ -18,34 +18,34 @@ export default function AdminPage() {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
   useEffect(() => {
-    loadRelayerBalance();
+    loadPaymasterBalance();
   }, []);
 
   useEffect(() => {
     if (isSuccess) {
-      loadRelayerBalance();
+      loadPaymasterBalance();
     }
   }, [isSuccess]);
 
-  async function loadRelayerBalance() {
+  async function loadPaymasterBalance() {
     try {
       setLoading(true);
       const balance = await getRelayerBalance();
-      setRelayerBalance(balance);
+      setPaymasterBalance(balance);
     } catch (error) {
-      console.error('Error loading relayer balance:', error);
+      console.error('Error loading paymaster balance:', error);
     } finally {
       setLoading(false);
     }
   }
 
   function copyAddress() {
-    navigator.clipboard.writeText(RELAYER_ADDRESS);
+    navigator.clipboard.writeText(PAYMASTER_ADDRESS);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function handleFundRelayer() {
+  function handleFundPaymaster() {
     if (!address) {
       alert('Please connect your wallet first');
       return;
@@ -54,11 +54,11 @@ export default function AdminPage() {
     try {
       const amount = parseEther(fundAmount);
       sendTransaction({
-        to: RELAYER_ADDRESS,
+        to: PAYMASTER_ADDRESS,
         value: amount,
       });
     } catch (error) {
-      console.error('Error funding relayer:', error);
+      console.error('Error funding paymaster:', error);
       alert('Invalid amount');
     }
   }
@@ -68,24 +68,24 @@ export default function AdminPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8 bg-gray-800 p-6 rounded-lg">
           <h1 className="text-4xl font-bold mb-2 text-white">Admin Panel</h1>
-          <p className="text-gray-300">Monitor the Relayer Wallet for gasless transactions</p>
+          <p className="text-gray-300">Monitor the Paymaster Wallet for gasless transactions</p>
         </div>
 
         <div className="max-w-2xl mx-auto space-y-6">
-          {/* Relayer Balance Card */}
+          {/* Paymaster Balance Card */}
           <div className="border border-gray-700 rounded-lg p-6 bg-gray-800">
-            <h2 className="text-2xl font-bold mb-4 text-white">Relayer Wallet Status</h2>
+            <h2 className="text-2xl font-bold mb-4 text-white">Paymaster Wallet Status</h2>
             
             <div className="bg-gray-700 rounded-lg p-6 mb-4">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <p className="text-sm text-gray-400 mb-1">Relayer Balance</p>
+                  <p className="text-sm text-gray-400 mb-1">Paymaster Balance</p>
                   <p className="text-3xl font-bold text-purple-400">
-                    {loading ? '...' : formatEther(relayerBalance)} ETH
+                    {loading ? '...' : formatEther(paymasterBalance)} ETH
                   </p>
                 </div>
                 <button
-                  onClick={loadRelayerBalance}
+                  onClick={loadPaymasterBalance}
                   disabled={loading}
                   className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-500 disabled:opacity-50"
                 >
@@ -93,12 +93,12 @@ export default function AdminPage() {
                 </button>
               </div>
 
-              {/* Relayer Address */}
+              {/* Paymaster Address */}
               <div className="border-t border-gray-600 pt-4">
-                <p className="text-sm text-gray-400 mb-2">Relayer Address</p>
+                <p className="text-sm text-gray-400 mb-2">Paymaster Address</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 bg-gray-800 px-3 py-2 rounded text-sm text-purple-300 font-mono break-all">
-                    {RELAYER_ADDRESS}
+                    {PAYMASTER_ADDRESS}
                   </code>
                   <button
                     onClick={copyAddress}
@@ -111,11 +111,11 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Fund Relayer Section */}
+            {/* Fund Paymaster Section */}
             <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-500/50 rounded-lg p-6 mb-4">
-              <h3 className="text-lg font-bold mb-4 text-purple-300">💰 Fund Relayer Wallet</h3>
+              <h3 className="text-lg font-bold mb-4 text-purple-300">💰 Fund Paymaster Wallet</h3>
               <p className="text-sm text-gray-300 mb-4">
-                Send ETH to the relayer so it can pay gas fees for user transactions
+                Send ETH to the paymaster so it can pay gas fees for user transactions
               </p>
               
               <div className="flex gap-3 items-end">
@@ -132,7 +132,7 @@ export default function AdminPage() {
                   />
                 </div>
                 <button
-                  onClick={handleFundRelayer}
+                  onClick={handleFundPaymaster}
                   disabled={!address || isPending || isConfirming}
                   className="px-6 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
@@ -151,14 +151,14 @@ export default function AdminPage() {
               )}
 
               {!address && (
-                <p className="mt-3 text-sm text-yellow-400">⚠️ Connect your wallet to fund the relayer</p>
+                <p className="mt-3 text-sm text-yellow-400">⚠️ Connect your wallet to fund the paymaster</p>
               )}
             </div>
 
             <div className="bg-blue-900/20 border border-blue-500/50 rounded-lg p-4">
-              <h3 className="text-lg font-bold mb-2 text-blue-300">ℹ️ About the Relayer</h3>
+              <h3 className="text-lg font-bold mb-2 text-blue-300">ℹ️ About the Paymaster</h3>
               <p className="text-sm text-gray-300 mb-2">
-                The relayer wallet pays gas fees for gasless transactions:
+                The paymaster wallet pays gas fees for gasless transactions:
               </p>
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-300">
                 <li>✅ Voting on DAO proposals (DAO.castVote)</li>
@@ -185,21 +185,21 @@ export default function AdminPage() {
             </div>
             <div className="border border-gray-700 rounded-lg p-4 bg-gray-800">
               <h3 className="font-bold mb-2 text-white">Gasless Voting</h3>
-              <p className="text-sm text-gray-300">
-                Both DAO and RWA Governor votes are paid for by the relayer
+                <p className="text-sm text-gray-300">
+                Both DAO and RWA Governor votes are paid for by the paymaster
               </p>
             </div>
             <div className="border border-gray-700 rounded-lg p-4 bg-gray-800">
               <h3 className="font-bold mb-2 text-white">Gasless Finalization</h3>
-              <p className="text-sm text-gray-300">
-                Project finalization is also covered by the relayer wallet
+                <p className="text-sm text-gray-300">
+                Project finalization is also covered by the paymaster wallet
               </p>
             </div>
           </div>
 
           {/* Sponsored Functions */}
           <div className="border border-gray-700 rounded-lg p-6 bg-gray-800">
-            <h3 className="text-lg font-bold mb-4 text-white">Relayer-Sponsored Functions</h3>
+            <h3 className="text-lg font-bold mb-4 text-white">Paymaster-Sponsored Functions</h3>
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between p-3 bg-gray-700 rounded">
                 <span className="font-mono text-gray-300">DAO.castVote(uint256,uint8)</span>
