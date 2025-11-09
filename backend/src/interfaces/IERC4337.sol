@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 struct UserOperation {
     address sender;
@@ -16,19 +16,21 @@ struct UserOperation {
 }
 
 interface IEntryPoint {
+    function handleOps(UserOperation[] calldata ops, address payable beneficiary) external;
     function getSenderAddress(bytes calldata initCode) external view returns (address);
-    function getUserOpHash(UserOperation calldata userOp) external view returns (bytes32);
-    function depositTo(address account) external payable;
-    function withdrawTo(address payable withdrawAddress, uint256 withdrawAmount) external;
-    function balanceOf(address account) external view returns (uint256);
 }
 
 interface IPaymaster {
+    enum PostOpMode {
+        opSuccess,
+        opRevert
+    }
+
     function validatePaymasterUserOp(
         UserOperation calldata userOp,
         bytes32 userOpHash,
-        uint256 maxCost
+        uint256 requiredPreFund
     ) external returns (bytes memory context, uint256 validationData);
 
-    function postOp(uint8 mode, bytes calldata context, uint256 actualGasCost) external;
+    function postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost) external;
 }
