@@ -22,10 +22,6 @@ export async function POST(request: NextRequest) {
     console.log('  Support:', support);
     console.log('  Relayer address:', relayer.account.address);
 
-    // NOTE: This casts the vote using the RELAYER's address, not the user's address.
-    // The DAO will record the vote as coming from the relayer.
-    // For vote attribution to the user's address, you would need to implement
-    // a meta-transaction pattern or use ERC-4337 account abstraction.
     const hash = await relayer.writeContract({
       address: CONTRACTS.DAO,
       abi: DAO_ABI,

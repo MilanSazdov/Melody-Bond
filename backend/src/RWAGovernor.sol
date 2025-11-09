@@ -11,9 +11,7 @@ import {IERC6551Account} from "./interfaces/IERC6551.sol";
 
 /**
  * @title RWAGovernor (Upgradeable)
- * @dev Logical implementation for a DAO governing a single RWA NFT.
- * Uses OpenZeppelin Upgradeable contracts to support `Clones.clone()`.
- * Directly controls an ERC-6551 (TBA) wallet instead of a Timelock.
+ * @dev Logical implementation for a DAO governing a single RWA NFT
  */
 contract RWAGovernor is
     Initializable,
@@ -24,42 +22,30 @@ contract RWAGovernor is
     DAO public mainDao;
     address public tbaAddress; // Address of the controlled ERC-6551 wallet
 
-    /**
-     * @dev Initializer (instead of constructor).
-     */
     function initialize(
         uint256 _nftId,
-        address _tbaAddress, // Address of the ERC-6551 (TBA) wallet
-        address payable _mainDao // FIX: Make _mainDao payable
+        address _tbaAddress, 
+        address payable _mainDao 
     ) external initializer {
-        // Set state variables
+        
         nftId = _nftId;
         tbaAddress = _tbaAddress;
-        mainDao = DAO(_mainDao); // This cast now works
+        mainDao = DAO(_mainDao); 
 
-        // Initialize inherited contracts
-        
         string memory name = string(
             abi.encodePacked("RWA Governor for NFT #", Strings.toString(_nftId))
         );
         __Governor_init(name);
         
-        __GovernorCountingSimple_init(); // ADD this
+        __GovernorCountingSimple_init(); 
     }
 
-    /**
-     * @dev Returns the number of votes an account has.
-     * Reads voting power from the `rwaShares` mapping in the main DAO contract.
-     */
     function _getVotes(address account, uint256 /* blockNumber */, bytes memory /* params */) internal view override returns (uint256) {
         // Returns CURRENT voting power
         return mainDao.rwaShares(nftId, account);
     }
 
-    /**
-     * @dev Creates a new proposal (e.g., "withdraw money").
-     * Allows proposals only from those who hold a stake (investors).
-     */
+
     function propose(
         address[] memory targets,
         uint256[] memory values,
@@ -75,10 +61,6 @@ contract RWAGovernor is
         return super.propose(targets, values, calldatas, description);
     }
 
-    /**
-     * @dev Executes a proposal after it has passed.
-     * Overridden so calls are executed from the ERC-6551 (TBA) wallet.
-     */
     function _executeOperations(
         uint256 /* proposalId */,
         address[] memory targets,
@@ -86,13 +68,7 @@ contract RWAGovernor is
         bytes[] memory calldatas,
         bytes32 /* descriptionHash */
     ) internal override {
-        // Examples: "withdraw money" or "change metadata"
-        // This Governor (owner/controller of the TBA) instructs the TBA wallet to perform actions
-     
-           
-        // Optionally ensure this contract (Governor) owns/controls the TBA wallet
-        // (Depends on TBA implementation, e.g., Ownable)
-        // require(IERC173(tbaAddress).owner() == address(this), "Governor must own TBA");
+        
         for (uint256 i = 0; i < targets.length; ++i) {
             // Instruct the TBA wallet to execute the call
             IERC6551Account(tbaAddress).executeCall(
@@ -113,20 +89,16 @@ contract RWAGovernor is
 
     function votingPeriod() public pure override returns (uint256) {
         return 120;
-        // 10 blocks (adjust as needed)
     }
 
     function proposalThreshold() public pure override returns (uint256) {
         return 0;
-        // 0 tokens needed to create a proposal
     }
 
     function quorum(uint256 /* timepoint */) public pure override returns (uint256) {
         return 0;
-        // 0 votes required for a proposal to pass
     }
 
-    // --- FIX: Add clock() and CLOCK_MODE() for OpenZeppelin v4.8+ ---
     function clock() public view virtual override returns (uint48) {
         return uint48(block.timestamp);
     }
@@ -135,44 +107,34 @@ contract RWAGovernor is
         return "mode=timestamp";
     }
 
-    /**
-     * @dev Helper funkcija za kreiranje predloga za distribuciju profita.
-     * Kreira predlog u 2 koraka:
-     * 1. Naredi TBA novčaniku da odobri (approve) Distributeru da povuče tokene.
-     * 2. Naredi TBA novčaniku da pozove distribute() na Distributer ugovoru.
-     *
-     * @param distributorAddress Adresa deploy-ovanog Distributor ugovora.
-     * @param tokenAddress Adresa ERC20 tokena koji se deli (npr. MockUSDC).
-     * @param amount Iznos tokena za distribuciju (u najmanjim jedinicama, npr. 100 * 10**6).
-     */
     function proposeProfitDistribution(
         address distributorAddress,
         address tokenAddress,
         uint256 amount
     ) external returns (uint256 proposalId) {
         
-        // 1. Pripremi calldata za "approve(address,uint256)"
+    // Prepare calldata for approve(address,uint256)
         bytes memory calldataApprove = abi.encodeWithSignature(
             "approve(address,uint256)",
             distributorAddress,
             amount
         );
 
-        // 2. Pripremi calldata za "distribute(uint256,uint256,address)"
+    // Prepare calldata for distribute(uint256,uint256,address)
         bytes memory calldataDistribute = abi.encodeWithSignature(
             "distribute(uint256,uint256,address)",
-            nftId, // ID ovog NFT-a je već sačuvan u ugovoru
+            nftId, // The ID of this NFT is already stored in the contract
             amount,
             tokenAddress
         );
 
-        // 3. Spakuj obe akcije u jedan predlog
+    // Pack both actions into a single proposal
         address[] memory targets = new address[](2);
         targets[0] = tokenAddress;
         targets[1] = distributorAddress;
 
         uint256[] memory values = new uint256[](2);
-        // Obe akcije su bez slanja ETH
+    // Both actions send no ETH
         values[0] = 0;
         values[1] = 0;
 
@@ -180,10 +142,10 @@ contract RWAGovernor is
         calldatas[0] = calldataApprove;
         calldatas[1] = calldataDistribute;
 
-        string memory description = "Predlog za distribuciju profita investitorima.";
+    string memory description = "Proposal to distribute profits to investors.";
 
-        // 4. Pozovi standardnu 'propose' funkciju sa ovim podacima
-        // Provera da li je msg.sender investitor se dešava unutar super.propose
+    // Call the standard propose function with these actions
+    // The investor check (msg.sender eligibility) is performed by super.propose
         return super.propose(targets, values, calldatas, description);
     }
 }

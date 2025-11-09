@@ -26,7 +26,7 @@ export default function PendingApplications() {
       setBusyId(app.id)
       setMsg(null)
       setErr(null)
-      // Sanity: require constants set (check for placeholder pattern)
+      // require constants set (check for placeholder pattern)
       if (ERC6551_REGISTRY_ADDRESS.startsWith('0x...') || ERC6551_IMPLEMENTATION_ADDRESS.startsWith('0x...')) {
         throw new Error('Please set ERC6551 addresses in constants.ts')
       }
@@ -38,7 +38,7 @@ export default function PendingApplications() {
       }) as bigint
 
       // Action 1: transfer USDC from Treasury to musician (use configured musician address or app field later)
-      // NOTE: MUSICIAN_PERA_ADDRESS was removed. Use app.recipient if available, else throw.
+      
       if (!(app as any).recipient) throw new Error('Missing recipient address in application.');
       const recipient = (app as any).recipient as Address
       const usdcTransfer = encodeFunctionData({

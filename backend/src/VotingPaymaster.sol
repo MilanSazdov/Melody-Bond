@@ -103,7 +103,7 @@ contract VotingPaymaster is IPaymaster {
         // Manually read the 4-byte function selector from innerCallData
         bytes4 innerSelector;
         assembly {
-            // Since `innerCallData` is in memory, skip the first 32 bytes (length)
+            // Since innerCallData is in memory, skip the first 32 bytes (length)
             innerSelector := mload(add(innerCallData, 0x20))
         }
         innerSelector = innerSelector >> 224;
@@ -121,7 +121,7 @@ contract VotingPaymaster is IPaymaster {
             innerSelector == castVoteSelector || 
             innerSelector == castVoteWithReasonSelector
         ) {
-            // ----- User is calling 'castVote' (on any DAO) -----
+            // ----- User is calling castVote (on any DAO) -----
             
             if (target == dao) {
                 // Sub-case A: Voting on the main DAO
@@ -140,7 +140,7 @@ contract VotingPaymaster is IPaymaster {
             }
         }
 
-        // If the call is not sponsorable, reject it.
+        // If the call is not sponsorable, reject it
         if (!isSponsorable) {
             revert("VotingPaymaster: Invalid or non-sponsorable call");
         }

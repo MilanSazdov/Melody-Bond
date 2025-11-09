@@ -26,8 +26,6 @@ export default function ApplyForFunding({ onCreated }: { onCreated?: () => void 
       addApplication({ artist, song, amountUSDC: amountNum, royaltyPercent: royaltyNum, demoLink })
       setMsg('Application submitted. DAO members can now propose funding.')
       if (onCreated) onCreated()
-      // Optionally reset form
-      // setArtist(''); setSong(''); setAmount(''); setRoyalty(''); setDemoLink('')
     } catch (e: any) {
       setErr(e?.message || 'Failed to save application')
     } finally {

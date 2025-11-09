@@ -23,8 +23,7 @@ export async function POST(request: NextRequest) {
     console.log('  Amount:', amount);
     console.log('  Relayer address:', relayer.account.address);
 
-    // NOTE: This invests using the RELAYER's address, not the user's address.
-    // The user must have already approved USDC to the DAO contract.
+    // The user must have already approved USDC to the DAO contract
     const hash = await relayer.writeContract({
       address: CONTRACTS.DAO,
       abi: DAO_ABI,

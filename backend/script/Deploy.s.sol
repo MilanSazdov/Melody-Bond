@@ -34,19 +34,19 @@ contract Deploy is Script {
     console.log("GovToken deployed at:", address(govToken));
 
     // --- Deploy MockUSDC ---
-    // Deployer je vlasnik i dobija 10M mUSDC
+    // Deployer is the owner and receives 10M mock USDC
     MockUSDC mockUsdc = new MockUSDC(deployerAddress);
     console.log("MockUSDC deployed at:", address(mockUsdc));
     console.log("Deployer (", deployerAddress, ") received 10,000,000 mUSDC.");
 
     // --- Deploy main Timelock ---
-    // Use empty proposers array to avoid granting open (address(0)) proposer/canceller role.
-    // Keep executors open (address(0)) so any address can execute queued ops after delay.
+    // Use empty proposers array to avoid granting open (address(0)) proposer/canceller role
+    // Keep executors open (address(0)) so any address can execute queued ops after delay
     address[] memory proposers = new address[](0);
     address[] memory executors = new address[](1);
     executors[0] = address(0); // open execution
     Timelock mainTimelock = new Timelock(
-        1 minutes, // 1-day minimum delay for the main DAO
+        1 minutes,
         proposers,
         executors,
         deployerAddress // Deployer is a temporary admin
@@ -68,12 +68,11 @@ contract Deploy is Script {
     // For now, the treasury is the deployer
     console.log("DAO Treasury (deployer) is:", daoTreasury);
 
-    // IZMENA: Prosleđujemo adresu deploy-ovanog mockUsdc ugovora
+    // Passing address of the deployed MockUSDC contract to DAO constructor
     DAO dao = new DAO( 
         IVotes(address(govToken)),
-        // FIX: Cast mainTimelock address to payable
         TimelockController(payable(address(mainTimelock))),
-        address(mockUsdc), // <-- UMESTO "USDC_ADDRESS"
+        address(mockUsdc),
         address(rwaNft),
         ERC6551_REGISTRY_ADDRESS,
         address(rwaGovernorLogic),
@@ -81,8 +80,6 @@ contract Deploy is Script {
     );
     console.log("DAO deployed at:", address(dao)); 
 
-    // Deploy Distributor and pass it the DAO contract address
-    // FIX: Cast dao address to payable
     Distributor distributor = new Distributor(payable(address(dao)));
     console.log("Distributor deployed at:", address(distributor));
 
@@ -94,11 +91,8 @@ contract Deploy is Script {
     );
     console.log("VotingPaymaster deployed at:", address(paymaster));
 
-    // --- Link Ownerships and Roles (KEY PART) ---
-
     console.log("Setting up roles and ownerships...");
-    
-    // Configure roles with helper to avoid stack-too-deep
+
     _setupTimelockRoles(mainTimelock, address(dao), deployerAddress);
 
     // Transfer ownership of RWA.sol to DAO

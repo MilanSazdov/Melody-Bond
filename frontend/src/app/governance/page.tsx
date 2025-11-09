@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useWalletClient, useAccount } from "wagmi";
 import { formatUnits, type Address, type Hex, keccak256, toHex } from "viem";
 import { publicClient } from "@/lib/clients";
-// Use the same addresses & ABIs as portfolio to avoid mismatches
+
 import { DAO_ADDRESS, DAO_ABI, RWA_GOVERNOR_ABI, RWA_ABI, RWA_ADDRESS } from "@/constants";
 import { ProposalState, VoteSupport } from "@/contracts";
 import { gaslessVoteRWA } from "@/lib/accountAbstraction";
@@ -190,8 +190,6 @@ export default function GovernancePage() {
     
     load();
 
-    // Removed aggressive 6s polling - causes constant RPC failures and flickering.
-    // Manual refresh after vote now handles state updates.
     
     return () => {
       isMounted = false;
@@ -301,7 +299,7 @@ export default function GovernancePage() {
             ...(latestBlock !== undefined ? { toBlock: latestBlock } : {}),
           });
           
-          // Safety check - getLogs can fail in weird ways
+          // Safety check - getLogs
           if (!pLogs || !Array.isArray(pLogs)) {
             console.warn('[Governance] getLogs returned invalid data for', governorAddress);
           } else {

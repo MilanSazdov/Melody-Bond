@@ -142,12 +142,6 @@ export async function getUserRWAInvestments(
   try {
     const investments: RWAInvestment[] = []
 
-    // NEW STRATEGY: Scan minted NFT IDs directly instead of iterating proposals.
-    // Rationale: The public struct getter `rwaProposals(uint256)` sometimes returns no data ("0x")
-    // for certain IDs due to ABI/frontend mismatch or an uninitialized struct with dynamic members.
-    // Minted NFTs imply executed proposals because _executeSuccess() sets proposal.state=Executed
-    // immediately after mint + governor deployment.
-
     // Heuristic upper bound: attempt up to nextRWAProposalId (if available) or fallback to 50.
     let upperBound = 50n
     try {

@@ -50,24 +50,19 @@ export default function DemoPage() {
   const [endErr, setEndErr] = useState<string | null>(null)
 
   const fundPaymaster = async () => {
-    // TODO: Update to use useWriteContract hook
     setDepositErr('Demo feature temporarily disabled. Please use the Paymaster page.')
   }
 
   const claimRevenue = async (assetId: number) => {
-    // TODO: Update to use useWriteContract hook
     setClaimErr('Demo feature temporarily disabled.')
   }
 
   const depositRevenue = async () => {
-    // TODO: Update to use useWriteContract hook
     setStreamErr('Demo feature temporarily disabled.')
   }
 
-  // End Session: finalize a proposal. If Succeeded -> queue (if needed) then try execute.
+  // End Session: finalize a proposal. If Succeeded -> queue (if needed) then try execute
   const endSession = async () => {
-    // TODO: Update to use useWriteContract hook
-    // For now, use the Governance page to Queue/Execute proposals
     setEndErr('Please use the Governance page to Queue and Execute proposals.')
   }
 

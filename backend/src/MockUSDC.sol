@@ -7,9 +7,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title MockUSDC
- * @dev Jednostavan ERC20 token za testiranje koji imitira USDC.
- * - Ima 6 decimala.
- * - Mint-uje 10 miliona tokena deployer-u.
+ * @dev Simple ERC20 token for testing that mimics USDC.
+ * - Uses 6 decimals.
+ * - Mints 10 million tokens to the deployer.
  */
 contract MockUSDC is ERC20, Ownable {
     
@@ -17,21 +17,15 @@ contract MockUSDC is ERC20, Ownable {
         ERC20("Mock USDC", "mUSDC") 
         Ownable(initialOwner)
     {
-        // Mint 10,000,000 mUSDC na adresu onoga ko deploy-uje
-        // Koristimo 10**6 jer USDC ima 6 decimala
+    // Mint 10,000,000 mUSDC to the deployer address
+    // Multiply by 10**6 because USDC uses 6 decimals
         _mint(msg.sender, 10_000_000 * (10**6)); 
     }
 
-    /**
-     * @dev Prepisujemo funkciju da vrati 6 decimala.
-     */
     function decimals() public pure override returns (uint8) {
         return 6;
     }
 
-    /**
-     * @dev Opciona funkcija koja omogućava vlasniku da mint-uje još tokena ako zatreba.
-     */
     function mint(address to, uint256 amount) external onlyOwner {
         _mint(to, amount);
     }

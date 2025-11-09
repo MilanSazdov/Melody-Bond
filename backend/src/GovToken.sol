@@ -14,7 +14,7 @@ contract GovToken is ERC20, ERC20Permit, ERC20Votes, Ownable {
     constructor(address initialOwner)
         ERC20("GovToken", "GOV")
         ERC20Permit("GovToken")
-        Ownable(initialOwner) // Postavi deployer-a kao inicijalnog vlasnika
+            Ownable(initialOwner) // Set the deployer as the initial owner
     {
         // Mint initial supply to deployer
         _mint(msg.sender, 1_000_000 * 10 ** decimals());

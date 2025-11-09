@@ -9,15 +9,11 @@ contract Distributor {
     DAO public mainDao;
 
     // Create the Distributor with the main DAO address
-    constructor(address payable _mainDao) { // FIX: Make _mainDao payable
-        mainDao = DAO(_mainDao); // This cast now works
+    constructor(address payable _mainDao) { 
+        mainDao = DAO(_mainDao);
     }
 
-    /**
-     * @dev Main distribution function.
-     * ...
-     */
-    // ... (rest of the file is correct) ...
+    
     function distribute(
         uint256 nftId,
         uint256 totalAmount,
@@ -29,9 +25,6 @@ contract Distributor {
         require(proposalId != 0 || nftId == 0, "Distributor: Invalid nftId");
         // Check whether mapping exists
 
-        // Fetch proposal details to determine total stake (total shares)
-        // We use the public getter Solidity creates for `rwaProposals`
-        // (bool, address, uint256, uint256 raisedUSDC, ...)
         (
             ,
             ,

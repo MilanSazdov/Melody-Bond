@@ -8,10 +8,6 @@ import {
 import { sepolia } from 'viem/chains';
 import { privateKeyToAccount } from 'viem/accounts';
 
-/**
- * Get relayer wallet client (server-side only)
- * This should ONLY be called from API routes, not from client components
- */
 export function getRelayerWallet() {
   const relayerKey = process.env.RELAYER_PRIVATE_KEY;
   if (!relayerKey) {

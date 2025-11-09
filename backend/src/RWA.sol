@@ -14,11 +14,11 @@ contract RWA is ERC721URIStorage, Ownable {
     {}
 
     /**
-     * @dev Mints a new RWA NFT.
-     * This function can only be called by the owner (the DAO.sol contract).
-     * @param to The address to mint the NFT to (e.g., daoTreasury).
-     * @param uri The metadata URI for the new NFT.
-     * @return The ID of the new token.
+     * @dev Mints a new RWA NFT
+     * This function can only be called by the owner (the DAO.sol contract)
+     * @param to The address to mint the NFT to (e.g., daoTreasury)
+     * @param uri The metadata URI for the new NFT
+     * @return The ID of the new token
      */
     
     function mint(address to, string memory uri) external onlyOwner returns (uint256) {
@@ -29,12 +29,10 @@ contract RWA is ERC721URIStorage, Ownable {
     }
 
     /**
-     * @dev Omogućava vlasniku (DAO ugovoru) ili vlasniku tokena da promeni URI.
+     * @dev Allows the contract owner (DAO) or the token owner to update the token URI
      */
     function setTokenURI(uint256 tokenId, string memory uri) external {
-        // Proverava da li je pozivalac VLASNIK UGOVORA (DAO)
-        // ili VLASNIK TOKENA (daoTreasury)
-        // NOVA LINIJA (ISPRAVLJENO)
+        // Check caller is either the token owner or the contract owner (DAO)
         require(ownerOf(tokenId) == msg.sender || msg.sender == owner(), "RWA: Not authorized");
         _setTokenURI(tokenId, uri);
     }

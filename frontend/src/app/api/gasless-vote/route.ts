@@ -1,18 +1,3 @@
-// ⚠️ DEPRECATED - NO LONGER USED
-// 
-// This API route was used for the old EIP-712 relayer-based gasless voting.
-// 
-// NEW APPROACH: ERC-4337 Account Abstraction
-// - Users sign UserOperations with their EOA
-// - Smart contract accounts execute votes
-// - VotingPaymaster pays gas directly (no relayer needed)
-// 
-// See: 
-// - src/components/Vote-AA.tsx (new voting component)
-// - src/lib/accountAbstraction.ts (AA helpers)
-// - AA_SETUP_GUIDE.md (full documentation)
-//
-// This file can be deleted after confirming AA voting works.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createWalletClient, http, parseEther, encodeFunctionData, Address, Hex } from 'viem'
@@ -75,10 +60,6 @@ export async function POST(request: NextRequest) {
       relayer: account.address
     })
 
-    // Submit the vote transaction using the relayer's wallet
-    // Gas costs are paid by the relayer (funded from the VotingPaymaster deposit pool)
-    // The VotingPaymaster at 0xb4C87bB590ecBb113D879209e606b7E189bcD7de validates
-    // that only castVote operations are sponsored
     const hash = await walletClient.writeContract({
       address: DAO_ADDRESS,
       abi: DAO_ABI,

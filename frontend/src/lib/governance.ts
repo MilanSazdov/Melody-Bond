@@ -1,7 +1,7 @@
 import { Address, encodeFunctionData, Hex } from 'viem'
 import { DAO_ADDRESS, RWA_ADDRESS, ERC6551_REGISTRY_ADDRESS, ERC6551_IMPLEMENTATION_ADDRESS, ERC6551_REGISTRY_ABI, ERC6551_ACCOUNT_ABI, ERC20_ABI, DAO_TREASURY_ADDRESS } from '../constants'
 
-// Tiny helpers to build proposal payloads centered around DAO + Timelock execution.
+// Tiny helpers to build proposal payloads centered around DAO + Timelock execution
 
 export type ProposalPayload = {
   targets: Address[]
@@ -10,7 +10,7 @@ export type ProposalPayload = {
 }
 
 // 1) Mint RWA + Create TBA (ERC-6551) in a single proposal
-// Assumptions: salt=0, initData empty; Timelock owns RWA and can mint.
+// Assumptions: salt=0, initData empty; Timelock owns RWA and can mint
 export function buildMintAndCreateTBAPayload(params: {
   to: Address
   tokenURI: string
@@ -36,7 +36,7 @@ export function buildMintAndCreateTBAPayload(params: {
       ERC6551_IMPLEMENTATION_ADDRESS,
       BigInt(params.chainId),
       RWA_ADDRESS,
-  BigInt(0), // NOTE: tokenId is 0 for the first mint; if dynamic, split proposal or pass known id.
+  BigInt(0), 
       salt,
       initData,
     ]

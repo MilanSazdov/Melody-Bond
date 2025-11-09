@@ -50,8 +50,8 @@ export default function CreateProposalForm({ onSuccess }: CreateProposalFormProp
         image: formData.imageUrl || 'https://via.placeholder.com/400',
       };
 
-      // In production, you'd upload this to IPFS
-      // For demo, we'll use a data URI (not recommended for production)
+      // In production, we will upload this to IPFS
+      // For demo, we'll use a data URI
       const metadataURI = `data:application/json;base64,${Buffer.from(JSON.stringify(metadata)).toString('base64')}`;
 
       const targetUSDC = parseUnits(formData.targetUSDC, 6); // USDC has 6 decimals

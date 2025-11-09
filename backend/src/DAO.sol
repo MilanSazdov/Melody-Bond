@@ -7,7 +7,7 @@ import {GovernorTimelockControl} from "@openzeppelin/contracts/governance/extens
 import {GovernorVotes} from "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import {GovernorVotesQuorumFraction} from "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
-import {GovernorCountingSimple} from "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol"; 
+import {GovernorCountingSimple} from "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
@@ -56,7 +56,7 @@ contract DAO is
     mapping(uint256 => mapping(address => uint256)) public rwaShares;
     mapping(uint256 => address) public rwaDaos;
 
-    // Mapping from NFT ID to RWA Proposal ID (For Distributor use)
+    // Mapping from NFT ID to RWA Proposal ID (used by the Distributor)
     mapping(uint256 => uint256) public nftProposalId;
     // Check if an address is a valid RWAGovernor clone
     mapping(address => bool) public isRWAGovernor;
@@ -96,10 +96,6 @@ contract DAO is
     function votingPeriod() public pure override returns (uint256) { return 120; }
     function proposalThreshold() public pure override returns (uint256) { return 0; }
 
-    // ... (rest of the DAO functions: createRWAFundingProposal, invest, etc.) ...
-    // ... (No changes needed in the middle of the contract) ...
-
-
     function _executeSuccess(uint256 proposalId) internal {
         RWAProposal storage proposal = rwaProposals[proposalId];
         require(proposal.state == RWAProposalState.Funding, "Proposal not funding");
@@ -111,21 +107,12 @@ contract DAO is
         // Connect newly minted NFT ID with the proposal ID
         nftProposalId[newNftId] = proposalId;
 
-        // --- KLJUČNA IZMENA OVDJE ---
-        // Transfer all raised USDC to the PROPOSER (the musician)
+        // Transfer all raised USDC to the proposal proposer (musician)
         uint256 totalRaised = proposal.raisedUSDC;
-        
-        // STARI KOD:
-        // require(usdcToken.transfer(daoTreasury, totalRaised), "USDC transfer failed");
-        
-        // NOVI KOD:
         require(usdcToken.transfer(proposal.proposer, totalRaised), "USDC transfer failed");
-        // --- KRAJ IZMENE ---
 
 
-        // Mint GOV tokene in the DAO treasury based on USDC raised
         uint256 govEquivalentTotal = totalRaised * (10 ** (18 - 6));
-        // FIX: Cast token() to address, then to GovToken
         GovToken(address(token())).mint(daoTreasury, govEquivalentTotal);
 
         // Remmember shares for each investor
@@ -149,7 +136,6 @@ contract DAO is
         // Create the TBA (wallet) for the NFT
         address tbaImplementation = 0x0000000000000000000000000000000000006551;
         bytes32 salt;
-        // Inline assembly keccak256 for slight gas optimization per warning (optional)
         assembly {
             // store nftId and chainid contiguously in memory
             let ptr := mload(0x40)
@@ -169,13 +155,12 @@ contract DAO is
         address newGovernor = Clones.clone(rwaGovernorLogic);
         // Initialize the RWAGovernor
         
-        // FIX: Cast newGovernor to payable
         RWAGovernor(payable(newGovernor)).initialize(
             nftId, 
             tbaAddress, // wallet address
             payable(address(this)) // Address of this DAO (as the 'provider' of votes)
         );
-        // Save the address of the new DAO ("brain")
+        // Save the address of the new DAO
         rwaDaos[nftId] = newGovernor;
         isRWAGovernor[newGovernor] = true;
 
@@ -183,14 +168,11 @@ contract DAO is
         // ERC-6551 TBAs derive authority from the NFT owner, so the Governor must own the NFT
         rwaNftContract.safeTransferFrom(daoTreasury, newGovernor, nftId);
 
-        // Attempt to transfer ownership of the wallet (TBA) to RWAGovernor if the implementation is Ownable.
-        // Many ERC-6551 reference accounts are not Ownable and derive authority from the NFT owner instead.
-        // If the TBA is not Ownable, this call will revert and be safely ignored here; ensure your TBA
-        // implementation authorizes RWAGovernor to execute (e.g., via custom validator/controller logic).
+        
         try Ownable(tbaAddress).transferOwnership(newGovernor) {
-            // Ownership transferred successfully on Ownable-compatible TBA implementations.
+            // Ownership transferred successfully on Ownable-compatible TBA implementations
         } catch {
-            // Non-Ownable TBA: no action. RWAGovernor must be authorized by the TBA's own rules.
+            // Non-Ownable TBA: no action. RWAGovernor must be authorized by the TBA's own rules
         }
         emit RWADeployed(nftId, newGovernor, tbaAddress);
     }
@@ -296,11 +278,12 @@ contract DAO is
     }
 
     /**
-     * @dev Helper za kreiranje predloga za promenu metadata na RWA NFT-u.
-     * @param rwaNftAddress Adresa RWA.sol ugovora.
-     * @param nftId ID tokena koji se menja.
-     * @param newURI Novi metadata URI.
-     * @param description Opis predloga.
+     * @dev Helper to create a proposal to change the metadata URI for an RWA NFT
+     * @param rwaNftAddress Address of the RWA NFT contract
+     * @param nftId ID of the token to update
+     * @param newURI New metadata URI
+     * @param description Proposal description
+     * @return proposalId The created governor proposal id
      */
     function proposeNFTMetadataChange(
         address rwaNftAddress,
@@ -308,7 +291,7 @@ contract DAO is
         string memory newURI,
         string memory description
     ) external returns (uint256 proposalId) {
-        
+
         bytes memory calldataSetURI = abi.encodeWithSignature(
             "setTokenURI(uint256,string)",
             nftId,
@@ -324,8 +307,7 @@ contract DAO is
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = calldataSetURI;
 
-        // Poziva propose() funkciju samog DAO ugovora
-        // Ovde se glasa GOV tokenima
+        // Call this DAO's propose() function. Voting uses GOV tokens
         return this.propose(targets, values, calldatas, description);
     }
 }

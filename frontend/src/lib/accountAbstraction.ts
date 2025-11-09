@@ -6,22 +6,6 @@ import {
 } from 'viem';
 import { CONTRACTS, DAO_ABI, RWAGOVERNOR_ABI } from '@/contracts';
 
-
-
-/**
- * REMOVED: Gasless invest doesn't work
- * 
- * The DAO.invest() function does transferFrom(msg.sender, ...) which means it needs
- * to transfer USDC from the caller's wallet. If the relayer calls it, the contract
- * tries to take USDC from the relayer, not the user.
- * 
- * Solution: Users must call invest() directly and pay gas themselves.
- * They need to approve USDC anyway, so they're already making a transaction.
- */
-
-/**
- * Gasless vote on main DAO proposal - relayer pays gas
- */
 export async function gaslessVoteDAO(
   walletClient: WalletClient,
   userAddress: Address,
@@ -51,9 +35,6 @@ export async function gaslessVoteDAO(
   }
 }
 
-/**
- * Gasless vote on RWAGovernor proposal - relayer pays gas
- */
 export async function gaslessVoteRWA(
   walletClient: WalletClient,
   userAddress: Address,
@@ -85,9 +66,6 @@ export async function gaslessVoteRWA(
   }
 }
 
-/**
- * Gasless finalize proposal - relayer pays gas
- */
 export async function gaslessFinalize(
   proposalId: bigint
 ): Promise<string> {
@@ -112,9 +90,6 @@ export async function gaslessFinalize(
   }
 }
 
-/**
- * Get relayer balance for display purposes
- */
 export async function getRelayerBalance(): Promise<bigint> {
   try {
     const response = await fetch('/api/relay/balance');

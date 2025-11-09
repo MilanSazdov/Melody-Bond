@@ -22,7 +22,6 @@ export default function WalletConnect() {
   // Wrong network detection
   const wrongNetwork = chain && chain.id !== sepolia.id
 
-  // Fix hydration by only rendering after mount
   useEffect(() => {
     setMounted(true)
   }, [])

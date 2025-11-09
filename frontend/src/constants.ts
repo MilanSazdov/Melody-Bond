@@ -1,6 +1,4 @@
 // Contract addresses and ABIs for the RWA demo (Sepolia)
-// Note: ABIs are expected under src/abis after you copy rwa-backend/out -> src/abis
-
 // --- ABI imports ---
 // To keep the app buildable before ABIs are copied, we avoid static imports here.
 // After copying `rwa-backend/out` to `src/abis`, you can optionally replace the
@@ -8,14 +6,14 @@
 //   import DAOArtifact from './abis/DAO.sol/DAO.json'
 
 // --- Sepolia Contract Addresses (Updated with your new deployments) ---
-export const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || '9594216');
-export const GOV_TOKEN_ADDRESS = '0xb0231d9dC68C4C320d121237fE8De00ab5899dBE' as const;
-export const TIMELOCK_ADDRESS = '0x417875AD8Af4DE85325DC1Ea09A719ea16254dDD' as const;
-export const DAO_ADDRESS = '0x132AD6fB8EaF3065C831Febf5788AbDa4B72c76C' as const;
-export const RWA_ADDRESS = '0x914c81B1A6C3aCF7B5903a7EDcB53C59373C6B57' as const;
-export const VOTING_PAYMASTER_ADDRESS = '0xAfb770895D6df47fC99Fc486093F229fF5645443' as const;
-export const DISTRIBUTOR_ADDRESS = '0xdD504aE23C6C63Ee60Ffc7abd84F736BC9b601f9' as const;
-export const RWA_GOVERNOR_LOGIC_ADDRESS = '0x6a5Fb4851aEB873641768e7996b8112766a50FC7' as const;
+export const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || '9595342');
+export const GOV_TOKEN_ADDRESS = '0x2F5Efd038D0015F400FA12D36197C61B2F909c1d' as const;
+export const TIMELOCK_ADDRESS = '0x4443C7b91b59c553f3aD488bff68F97D802B279F' as const;
+export const DAO_ADDRESS = '0xd4E82Da26f771698a506aab4eAC056665268e857' as const;
+export const RWA_ADDRESS = '0xd757e4e7ae631a558c74382aE77C1546313E6016' as const;
+export const VOTING_PAYMASTER_ADDRESS = '0xb49bD1a56B9A8310f5e05026b51D792ab1A79871' as const;
+export const DISTRIBUTOR_ADDRESS = '0x4744C6D6749Af15eaCCf3c36ECec8e045a4B3afa' as const;
+export const RWA_GOVERNOR_LOGIC_ADDRESS = '0xC797D7520f0AdBAEe7f4641F5AFa88A623fF354a' as const;
 
 // NOTE: This address was not in your update list and remains unchanged.
 export const MARKET_ADDRESS = '0xcb7bdd15f77d7ac42b0b297eacde12e0132682b6' as const;
@@ -31,7 +29,7 @@ export const ERC6551_REGISTRY_ADDRESS = '0x000000006551c19487814612e58FE06813775
 export const ERC6551_IMPLEMENTATION_ADDRESS = '0x0000000000000000000000000000000000006551' as const;
 
 // Mock USDC
-export const MOCK_USDC_ADDRESS = '0x49379c59Da9D2472896B37B8Cd86EA0B1CB256E9' as const;
+export const MOCK_USDC_ADDRESS = '0x1eA31CD06D5D86C9752e81e93764967a662De589' as const;
 
 // --- ABIs ---
 // Minimal ABIs needed for current UI interactions.
