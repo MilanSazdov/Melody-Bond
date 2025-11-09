@@ -1,5 +1,7 @@
 # Melody Bond - RWA DAO Frontend
 
+This README documents the frontend application only. It explains how to run and configure the frontend and which contract addresses the frontend expects. It does not include smart contract source, deployment scripts, or deployment guides — see the repository root or contract directories for those details.
+
 Decentralized governance platform for Real World Asset (RWA) tokenization with gasless transactions via Pimlico bundler on Sepolia testnet.
 
 ## 🚀 Features
@@ -37,13 +39,13 @@ Decentralized governance platform for Real World Asset (RWA) tokenization with g
 - Fund paymaster with ETH to enable gasless transactions
 - View sponsored function signatures
 
-## 🛠️ Setup
+## 🛠️ Setup (Frontend)
 
 ### Prerequisites
 - Node.js 18+
 - A wallet (MetaMask, Coinbase Wallet, etc.)
-- Sepolia ETH for non-gasless transactions
-- USDC on Sepolia for investing
+- Sepolia ETH for non-gasless transactions (when needed)
+- USDC on Sepolia for investing (mock or testnet USDC)
 
 ### Installation
 
@@ -54,20 +56,20 @@ npm install
 
 ### Environment Variables
 
-Copy `.env.local.example` to `.env.local` and fill in the values:
+Copy `.env.local.example` to `.env.local` and fill in the values. The addresses below are the frontend configuration defaults (Sepolia):
 
 ```env
-# Contract Addresses (Sepolia)
-NEXT_PUBLIC_DAO_ADDRESS=0x93793508d9Aa1B6ECf6E92B470d8daB0D32BaC91
-NEXT_PUBLIC_GOVTOKEN_ADDRESS=0x5a679bDB706EBd1dCD8225A3F8b28C78e69D0CbF
-NEXT_PUBLIC_TIMELOCK_ADDRESS=0xf5c56f3e66A59B8D5A7A1A6b2AC2e7e2c5F4e9E2
-NEXT_PUBLIC_RWA_NFT_ADDRESS=0x3D01e38F75f5B82b48A878C25c4F1d1c5a2F9E0a
-NEXT_PUBLIC_RWAGOVERNOR_LOGIC_ADDRESS=0xBac5f8d7C1C8B5c4e2F1d0c9b8a7e6d5c4b3a2e1
-NEXT_PUBLIC_DISTRIBUTOR_ADDRESS=0xC7d4e9F2a1b0c9e8d7f6e5d4c3b2a1f0e9d8c7b6
-NEXT_PUBLIC_VOTING_PAYMASTER_ADDRESS=0xD3b84c0C5c5c46f38ea00417a7b64285F1A72849
-NEXT_PUBLIC_DAO_TREASURY_ADDRESS=0xE4f5d1c0b9a8e7f6d5e4c3b2a1f0e9d8c7b6a5d4
-NEXT_PUBLIC_USDC_ADDRESS=0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8
-NEXT_PUBLIC_ENTRYPOINT=0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
+# Contract Addresses (Sepolia) - frontend configuration
+NEXT_PUBLIC_DAO_ADDRESS=0xd4E82Da26f771698a506aab4eAC056665268e857            # DAO
+NEXT_PUBLIC_GOVTOKEN_ADDRESS=0x2F5Efd038D0015F400FA12D36197C61B2F909c1d       # GovToken
+NEXT_PUBLIC_TIMELOCK_ADDRESS=0x4443C7b91b59c553f3aD488bff68F97D802B279F       # MainTimelock
+NEXT_PUBLIC_RWA_NFT_ADDRESS=0xd757e4e7ae631a558c74382aE77C1546313E6016        # RwaNFT
+NEXT_PUBLIC_RWAGOVERNOR_LOGIC_ADDRESS=0xC797D7520f0AdBAEe7f4641F5AFa88A623fF354a  # RwaGovernorLogic
+NEXT_PUBLIC_DISTRIBUTOR_ADDRESS=0x4744C6D6749Af15eaCCf3c36ECec8e045a4B3afa   # Distributor
+NEXT_PUBLIC_VOTING_PAYMASTER_ADDRESS=0xb49bD1a56B9A8310f5e05026b51D792ab1A79871 # VotingPaymaster
+NEXT_PUBLIC_DAO_TREASURY_ADDRESS=0xf7bB047581E3B6FD5B2c744a533Abd1846ED09Ee   # TreasuryDeployer (frontend treas config)
+NEXT_PUBLIC_USDC_ADDRESS=0x1eA31CD06D5D86C9752e81e93764967a662De589       # MockUSDC
+NEXT_PUBLIC_ENTRYPOINT=0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789           # EntryPoint (Sepolia)
 NEXT_PUBLIC_ERC6551_REGISTRY_ADDRESS=0x000000006551c19487814612e58FE06813775758
 
 # Network Configuration
@@ -80,6 +82,8 @@ NEXT_PUBLIC_BUNDLER_URL=https://api.pimlico.io/v2/11155111/rpc?apikey=YOUR_PIMLI
 NEXT_PUBLIC_PRIVY_APP_ID=YOUR_PRIVY_APP_ID
 ```
 
+> Note: Replace the RPC and Pimlico API keys and PRIVY app id with your own. The addresses above are the values the frontend is configured to use by default.
+
 ### Run Development Server
 
 ```bash
@@ -88,7 +92,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
-## 📖 User Guide
+## 📖 User Guide (Frontend)
 
 ### For Investors
 
@@ -97,7 +101,7 @@ Open [http://localhost:3000](http://localhost:3000)
 3. **Invest**: 
    - Approve USDC spending (one-time)
    - Enter investment amount
-   - Click "Invest (Gasless)" - no gas fees!
+   - Click "Invest (Gasless)" - no gas fees when paymaster is funded
 4. **Track Portfolio**: View your investments in `/portfolio`
 5. **Vote on Governance**: Go to `/governance` to vote on RWA proposals
 
@@ -120,83 +124,48 @@ Open [http://localhost:3000](http://localhost:3000)
 3. **Fund Paymaster**: Send ETH to enable gasless transactions
 4. **Minimum Recommended**: 0.1 ETH for testing
 
-## 🏗️ Architecture
+## 🏗️ Frontend Architecture Overview
 
-### Smart Contracts
-- **DAO**: Main factory contract, creates RWA proposals, manages investments
-- **RWAGovernor**: Per-NFT governance contract (cloned for each successful proposal)
-- **GovToken**: ERC20Votes governance token for main DAO
-- **RWA**: ERC721 NFT representing RWA ownership
-- **VotingPaymaster**: ERC-4337 paymaster sponsoring gasless transactions
-- **Distributor**: Revenue distribution based on investment shares
+The frontend interacts with the smart contracts listed in the environment variables above. It handles:
+- Building ERC-4337 UserOperations for gasless interactions
+- Calling Pimlico bundler to sponsor UserOperations
+- Interacting with the DAO, GovToken, RWA NFT, paymaster, and distributor contracts for UI flows
 
-### Account Abstraction Flow
-1. User initiates action (invest/vote)
-2. Frontend builds ERC-4337 UserOperation
-3. Calls Pimlico API to sponsor transaction (`pm_sponsorUserOperation`)
-4. Pimlico returns `paymasterAndData`
-5. UserOp submitted to bundler (`eth_sendUserOperation`)
-6. Bundler executes on-chain, paymaster covers gas
+### Key Frontend Files
+- src/lib/accountAbstraction.ts — ERC-4337 UserOp builder
+- src/lib/clients.ts — viem/wagmi client configuration
+- src/contracts/index.ts — contract ABIs and addresses used by the frontend
+- src/app/projects/page.tsx — Funding proposals UI
+- src/app/governance/page.tsx — Voting UI
+- src/app/portfolio/page.tsx — Investment portfolio
+- src/app/admin/page.tsx — Paymaster management
 
-### Data Flow
-```
-User Wallet → viem/wagmi → Pimlico Bundler → EntryPoint → VotingPaymaster → DAO/RWAGovernor
-```
-
-## 🧪 Testing
+## 🧪 Testing (Frontend)
 
 ### Test Gasless Invest
-1. Get Sepolia USDC from faucet
+1. Get Sepolia USDC from faucet (mock USDC above)
 2. Go to `/projects`
 3. Create or find a proposal
 4. Click "Invest (Gasless)"
-5. Sign message (no ETH needed!)
+5. Sign message (no ETH needed if paymaster is funded)
 
 ### Test Gasless Vote
 1. After investing, go to `/governance`
 2. Find your RWA in "My RWA Governors" tab
 3. Click vote button
-4. Sign message (no ETH needed!)
+4. Sign message (no ETH needed if paymaster is funded)
 
 ## 🔧 Tech Stack
 
-- **Next.js 14**: React framework with App Router
-- **TypeScript**: Type-safe development
-- **viem**: Ethereum library
-- **wagmi**: React hooks for Ethereum
-- **Privy**: Wallet connection
-- **Pimlico**: Account abstraction bundler
-- **Tailwind CSS**: Styling
+- Next.js 14: React framework with App Router
+- TypeScript: Type-safe development
+- viem: Ethereum library
+- wagmi: React hooks for Ethereum
+- Privy: Wallet connection
+- Pimlico: Account abstraction bundler
+- Tailwind CSS: Styling
 
-## 📝 Key Files
-
-- `src/lib/accountAbstraction.ts`: ERC-4337 UserOp builder
-- `src/lib/clients.ts`: viem client configuration
-- `src/contracts/index.ts`: Contract ABIs and addresses
-- `src/app/projects/page.tsx`: Funding proposals UI
-- `src/app/governance/page.tsx`: Voting UI
-- `src/app/portfolio/page.tsx`: Investment portfolio
-- `src/app/admin/page.tsx`: Paymaster management
-
-## 🐛 Troubleshooting
-
-### "Insufficient paymaster balance"
-- Admin needs to fund paymaster at `/admin`
-
-### "Approval needed"
-- First-time investors must approve USDC spending
-- Frontend will prompt automatically
-
-### "Transaction failed"
-- Check Sepolia block explorer for details
-- Ensure paymaster has sufficient ETH
-- Verify contract addresses in `.env.local`
-
-### "Metadata not loading"
-- Check IPFS/image URLs in proposal metadata
-- Fallback placeholder will be used
-
-## 🚀 Deployment
+## 🚀 Deployment (Frontend)
 
 ### Vercel (Recommended)
 
@@ -206,8 +175,14 @@ vercel --prod
 ```
 
 ### Environment Variables
-Add all `.env.local` variables to Vercel project settings
+Add all `.env.local` variables from above to Vercel project settings.
+
+## 📄 Misc / Notes
+
+- Deployment block (DAO): 9595342 — used by the frontend for event indexing if needed.
+- This README is focused on the frontend application only. For smart contract sources, deployment scripts, and audit notes, consult the contracts folder or repository root.
 
 ## 📄 License
 
 MIT
+```
