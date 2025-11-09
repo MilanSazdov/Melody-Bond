@@ -1,0 +1,42 @@
+{
+  "name": "rwa-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1 -p 3000",
+    "dev:lan": "next dev -H 0.0.0.0 -p 3000",
+    "dev:https": "node scripts/server-https.cjs --host 127.0.0.1 --port 3000 --key certs/dev.key --cert certs/dev.crt",
+    "dev:https:lan": "node scripts/server-https.cjs --host 0.0.0.0 --port 3000 --key certs/dev.key --cert certs/dev.crt",
+    "build": "next build",
+    "start": "next start -H 127.0.0.1 -p 3000",
+    "start:https": "node scripts/server-https.cjs --prod --host 127.0.0.1 --port 3000 --key certs/dev.key --cert certs/dev.crt",
+    "start:https:lan": "node scripts/server-https.cjs --prod --host 0.0.0.0 --port 3000 --key certs/dev.key --cert certs/dev.crt",
+    "start:lan": "next start -H 0.0.0.0 -p 3000",
+    "lint": "eslint",
+    "copy:abis": "powershell -NoProfile -Command \"if (!(Test-Path -Path 'src/abis')) { New-Item -ItemType Directory -Path 'src/abis' | Out-Null }; Copy-Item -Recurse -Force ..\\rwa-backend\\out\\* src\\abis\\\""
+  },
+  "dependencies": {
+    "@privy-io/wagmi": "^2.0.2",
+    "@privy-io/react-auth": "^3.5.1",
+    "@tanstack/react-query": "^5.90.6",
+    "@wagmi/connectors": "^6.1.3",
+    "next": "16.0.1",
+    "permissionless": "^0.2.57",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-icons": "^4.12.0",
+    "viem": "^2.38.6",
+    "wagmi": "^2.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.18",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.1",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5"
+  }
+}

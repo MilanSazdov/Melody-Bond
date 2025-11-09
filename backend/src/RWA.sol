@@ -27,4 +27,15 @@ contract RWA is ERC721URIStorage, Ownable {
         _setTokenURI(tokenId, uri);
         return tokenId;
     }
+
+    /**
+     * @dev Omogućava vlasniku (DAO ugovoru) ili vlasniku tokena da promeni URI.
+     */
+    function setTokenURI(uint256 tokenId, string memory uri) external {
+        // Proverava da li je pozivalac VLASNIK UGOVORA (DAO)
+        // ili VLASNIK TOKENA (daoTreasury)
+        // NOVA LINIJA (ISPRAVLJENO)
+        require(ownerOf(tokenId) == msg.sender || msg.sender == owner(), "RWA: Not authorized");
+        _setTokenURI(tokenId, uri);
+    }
 }

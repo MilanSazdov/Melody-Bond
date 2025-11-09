@@ -93,7 +93,7 @@ contract DAO is
     }
 
     function votingDelay() public pure override returns (uint256) { return 0; }
-    function votingPeriod() public pure override returns (uint256) { return 10; }
+    function votingPeriod() public pure override returns (uint256) { return 120; }
     function proposalThreshold() public pure override returns (uint256) { return 0; }
 
     // ... (rest of the DAO functions: createRWAFundingProposal, invest, etc.) ...
@@ -110,13 +110,21 @@ contract DAO is
         uint256 newNftId = rwaNftContract.mint(daoTreasury, proposal.nftMetadataURI);
         // Connect newly minted NFT ID with the proposal ID
         nftProposalId[newNftId] = proposalId;
-        // Transfer all raised USDC to DAO treasury
-    uint256 totalRaised = proposal.raisedUSDC;
-    require(usdcToken.transfer(daoTreasury, totalRaised), "USDC transfer failed");
+
+        // --- KLJUČNA IZMENA OVDJE ---
+        // Transfer all raised USDC to the PROPOSER (the musician)
+        uint256 totalRaised = proposal.raisedUSDC;
+        
+        // STARI KOD:
+        // require(usdcToken.transfer(daoTreasury, totalRaised), "USDC transfer failed");
+        
+        // NOVI KOD:
+        require(usdcToken.transfer(proposal.proposer, totalRaised), "USDC transfer failed");
+        // --- KRAJ IZMENE ---
+
 
         // Mint GOV tokene in the DAO treasury based on USDC raised
         uint256 govEquivalentTotal = totalRaised * (10 ** (18 - 6));
-        
         // FIX: Cast token() to address, then to GovToken
         GovToken(address(token())).mint(daoTreasury, govEquivalentTotal);
 
@@ -281,5 +289,39 @@ contract DAO is
 
     function CLOCK_MODE() public view virtual override(Governor, GovernorVotes) returns (string memory) {
         return "mode=timestamp";
+    }
+
+    /**
+     * @dev Helper za kreiranje predloga za promenu metadata na RWA NFT-u.
+     * @param rwaNftAddress Adresa RWA.sol ugovora.
+     * @param nftId ID tokena koji se menja.
+     * @param newURI Novi metadata URI.
+     * @param description Opis predloga.
+     */
+    function proposeNFTMetadataChange(
+        address rwaNftAddress,
+        uint256 nftId,
+        string memory newURI,
+        string memory description
+    ) external returns (uint256 proposalId) {
+        
+        bytes memory calldataSetURI = abi.encodeWithSignature(
+            "setTokenURI(uint256,string)",
+            nftId,
+            newURI
+        );
+
+        address[] memory targets = new address[](1);
+        targets[0] = rwaNftAddress;
+
+        uint256[] memory values = new uint256[](1);
+        values[0] = 0;
+
+        bytes[] memory calldatas = new bytes[](1);
+        calldatas[0] = calldataSetURI;
+
+        // Poziva propose() funkciju samog DAO ugovora
+        // Ovde se glasa GOV tokenima
+        return this.propose(targets, values, calldatas, description);
     }
 }
