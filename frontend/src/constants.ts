@@ -8,11 +8,13 @@
 //   import DAOArtifact from './abis/DAO.sol/DAO.json'
 
 // --- Sepolia Contract Addresses (Updated with your new deployments) ---
-export const GOV_TOKEN_ADDRESS = '0x6055b512F5166690Eb53c5afC83D8Ff9B489A2c6' as const;
-export const TIMELOCK_ADDRESS = '0x6bb79f6993A6BfaEB7549DA7ae59450E50A60379' as const;
-export const DAO_ADDRESS = '0x0289C1674FCF0cdBBD17507289BaCc03C56546FF' as const;
-export const RWA_ADDRESS = '0x3AC74246B7240C2f389278C36d1e396c15a39df9' as const;
-export const VOTING_PAYMASTER_ADDRESS = '0x4ae4fF6ed1D6a918e1eb6f5929428cd56C37F913' as const;
+export const GOV_TOKEN_ADDRESS = '0xb0231d9dC68C4C320d121237fE8De00ab5899dBE' as const;
+export const TIMELOCK_ADDRESS = '0x417875AD8Af4DE85325DC1Ea09A719ea16254dDD' as const;
+export const DAO_ADDRESS = '0x132AD6fB8EaF3065C831Febf5788AbDa4B72c76C' as const;
+export const RWA_ADDRESS = '0x914c81B1A6C3aCF7B5903a7EDcB53C59373C6B57' as const;
+export const VOTING_PAYMASTER_ADDRESS = '0xAfb770895D6df47fC99Fc486093F229fF5645443' as const;
+export const DISTRIBUTOR_ADDRESS = '0xdD504aE23C6C63Ee60Ffc7abd84F736BC9b601f9' as const;
+export const RWA_GOVERNOR_LOGIC_ADDRESS = '0x6a5Fb4851aEB873641768e7996b8112766a50FC7' as const;
 
 // NOTE: This address was not in your update list and remains unchanged.
 export const MARKET_ADDRESS = '0xcb7bdd15f77d7ac42b0b297eacde12e0132682b6' as const;
@@ -23,12 +25,12 @@ export const ENTRYPOINT_ADDRESS = (process.env.NEXT_PUBLIC_ENTRYPOINT || '0x5FF1
 // SimpleAccountFactory - Deploy this first!
 export const ACCOUNT_FACTORY_ADDRESS = (process.env.NEXT_PUBLIC_ACCOUNT_FACTORY || '0x0000000000000000000000000000000000000000') as `0x${string}`;
 
-// ERC-6551 (Token Bound Accounts) — fill with your actual deployed addresses
-export const ERC6551_REGISTRY_ADDRESS = '0x...' as const; // TODO: set your Registry address
-export const ERC6551_IMPLEMENTATION_ADDRESS = '0x...' as const; // TODO: set your Implementation address
+// ERC-6551 (Token Bound Accounts)
+export const ERC6551_REGISTRY_ADDRESS = '0x000000006551c19487814612e58FE06813775758' as const;
+export const ERC6551_IMPLEMENTATION_ADDRESS = '0x0000000000000000000000000000000000006551' as const;
 
-// Optional: Mock USDC (Phase 4 simulation)
-export const MOCK_USDC_ADDRESS = '0x5355770b7DED4F455F7ee58E81D8400EeDaEE6B5' as const; // TODO: set after deployment
+// Mock USDC
+export const MOCK_USDC_ADDRESS = '0x49379c59Da9D2472896B37B8Cd86EA0B1CB256E9' as const;
 
 // --- ABIs ---
 // Minimal ABIs needed for current UI interactions.
@@ -65,6 +67,30 @@ export const DAO_ABI = [
 			{ name: 'proposalId', type: 'uint256' },
 			{ name: 'support', type: 'uint8' },
 		], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' },
+	{ type: 'function', name: 'rwaShares', inputs: [
+			{ name: 'nftId', type: 'uint256' },
+			{ name: 'investor', type: 'address' },
+		], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+	{ type: 'function', name: 'rwaDaos', inputs: [
+			{ name: 'nftId', type: 'uint256' },
+		], outputs: [{ type: 'address' }], stateMutability: 'view' },
+	{ type: 'function', name: 'nftProposalId', inputs: [
+			{ name: 'nftId', type: 'uint256' },
+		], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+	{ type: 'function', name: 'rwaProposals', inputs: [
+			{ name: 'proposalId', type: 'uint256' },
+		], outputs: [
+			{ name: 'id', type: 'uint256' },
+			{ name: 'proposer', type: 'address' },
+			{ name: 'targetUSDC', type: 'uint256' },
+			{ name: 'raisedUSDC', type: 'uint256' },
+			{ name: 'deadline', type: 'uint256' },
+			{ name: 'nftMetadataURI', type: 'string' },
+			{ name: 'state', type: 'uint8' },
+		], stateMutability: 'view' },
+	{ type: 'function', name: 'getInvestorList', inputs: [
+			{ name: 'proposalId', type: 'uint256' },
+		], outputs: [{ name: '', type: 'address[]' }], stateMutability: 'view' },
 ] as const;
 
 export const RWA_ABI = [
@@ -75,6 +101,11 @@ export const RWA_ABI = [
 		], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' },
 	{ type: 'function', name: 'tokenURI', inputs: [ { name: 'tokenId', type: 'uint256' } ], outputs: [ { type: 'string' } ], stateMutability: 'view' },
 	{ type: 'function', name: 'totalSupply', inputs: [], outputs: [ { type: 'uint256' } ], stateMutability: 'view' },
+	{ type: 'function', name: 'setTokenURI', inputs: [ 
+			{ name: 'tokenId', type: 'uint256' },
+			{ name: 'uri', type: 'string' }
+		], outputs: [], stateMutability: 'nonpayable' },
+	{ type: 'function', name: 'ownerOf', inputs: [ { name: 'tokenId', type: 'uint256' } ], outputs: [ { type: 'address' } ], stateMutability: 'view' },
 ] as const;
 
 export const VOTING_PAYMASTER_ABI = [
@@ -175,6 +206,78 @@ export const ERC20_ABI = [
 	{ type: 'function', name: 'balanceOf', inputs: [ { name: 'account', type: 'address' } ], outputs: [ { type: 'uint256' } ], stateMutability: 'view' },
 	{ type: 'function', name: 'symbol', inputs: [], outputs: [ { type: 'string' } ], stateMutability: 'view' },
 	{ type: 'function', name: 'decimals', inputs: [], outputs: [ { type: 'uint8' } ], stateMutability: 'view' },
+	{ type: 'function', name: 'transfer', inputs: [
+		{ name: 'to', type: 'address' },
+		{ name: 'amount', type: 'uint256' }
+	], outputs: [ { type: 'bool' } ], stateMutability: 'nonpayable' },
+	{ type: 'function', name: 'approve', inputs: [
+		{ name: 'spender', type: 'address' },
+		{ name: 'amount', type: 'uint256' }
+	], outputs: [ { type: 'bool' } ], stateMutability: 'nonpayable' },
+] as const;
+
+// RWAGovernor ABI
+export const RWA_GOVERNOR_ABI = [
+	{ type: 'function', name: 'propose', inputs: [
+			{ name: 'targets', type: 'address[]' },
+			{ name: 'values', type: 'uint256[]' },
+			{ name: 'calldatas', type: 'bytes[]' },
+			{ name: 'description', type: 'string' },
+		], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' },
+	{ type: 'function', name: 'state', inputs: [{ name: 'proposalId', type: 'uint256' }], outputs: [{ type: 'uint8' }], stateMutability: 'view' },
+	{ type: 'function', name: 'castVote', inputs: [
+			{ name: 'proposalId', type: 'uint256' },
+			{ name: 'support', type: 'uint8' },
+		], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' },
+	{ type: 'function', name: 'execute', inputs: [
+			{ name: 'targets', type: 'address[]' },
+			{ name: 'values', type: 'uint256[]' },
+			{ name: 'calldatas', type: 'bytes[]' },
+			{ name: 'descriptionHash', type: 'bytes32' },
+		], outputs: [], stateMutability: 'payable' },
+	{ type: 'function', name: 'nftId', inputs: [], outputs: [{ type: 'uint256' }], stateMutability: 'view' },
+	{ type: 'function', name: 'tbaAddress', inputs: [], outputs: [{ type: 'address' }], stateMutability: 'view' },
+	{ type: 'function', name: 'proposalVotes', inputs: [{ name: 'proposalId', type: 'uint256' }], outputs: [
+		{ name: 'againstVotes', type: 'uint256' },
+		{ name: 'forVotes', type: 'uint256' },
+		{ name: 'abstainVotes', type: 'uint256' }
+	], stateMutability: 'view' },
+	{ type: 'function', name: 'hasVoted', inputs: [
+		{ name: 'proposalId', type: 'uint256' },
+		{ name: 'account', type: 'address' }
+	], outputs: [{ type: 'bool' }], stateMutability: 'view' },
+	{ type: 'function', name: 'proposeProfitDistribution', inputs: [
+		{ name: 'distributorAddress', type: 'address' },
+		{ name: 'tokenAddress', type: 'address' },
+		{ name: 'amount', type: 'uint256' }
+	], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' },
+	{ type: 'event', name: 'ProposalCreated', inputs: [
+		{ name: 'proposalId', type: 'uint256', indexed: true },
+		{ name: 'proposer', type: 'address', indexed: false },
+		{ name: 'targets', type: 'address[]', indexed: false },
+		{ name: 'values', type: 'uint256[]', indexed: false },
+		{ name: 'signatures', type: 'string[]', indexed: false },
+		{ name: 'calldatas', type: 'bytes[]', indexed: false },
+		{ name: 'startBlock', type: 'uint256', indexed: false },
+		{ name: 'endBlock', type: 'uint256', indexed: false },
+		{ name: 'description', type: 'string', indexed: false }
+	] },
+	{ type: 'event', name: 'VoteCast', inputs: [
+		{ name: 'voter', type: 'address', indexed: true },
+		{ name: 'proposalId', type: 'uint256', indexed: false },
+		{ name: 'support', type: 'uint8', indexed: false },
+		{ name: 'weight', type: 'uint256', indexed: false },
+		{ name: 'reason', type: 'string', indexed: false }
+	] },
+] as const;
+
+// Distributor ABI
+export const DISTRIBUTOR_ABI = [
+	{ type: 'function', name: 'distribute', inputs: [
+			{ name: 'nftId', type: 'uint256' },
+			{ name: 'totalAmount', type: 'uint256' },
+			{ name: 'tokenAddress', type: 'address' },
+		], outputs: [], stateMutability: 'nonpayable' },
 ] as const;
 
 // DAO Treasury address for revenue extraction proposals

@@ -147,7 +147,8 @@ export default function ProjectsPage() {
       for (const clog of createdLogs) {
         const proposalId = (clog as any)?.args?.proposalId as bigint;
         if (!proposalId) continue;
-        if (finalizedIds.has(proposalId.toString())) continue; // skip finalized
+        // Show all proposals including finalized ones
+        const isFinalized = finalizedIds.has(proposalId.toString());
         const proposer = (clog as any)?.args?.proposer as Address;
         const targetUSDC = ((clog as any)?.args?.targetUSDC as bigint) || BigInt(0);
         const deadline = ((clog as any)?.args?.deadline as bigint) || BigInt(0);
@@ -166,31 +167,27 @@ export default function ProjectsPage() {
           }
         } catch {}
 
+        // If finalized, set state to Executed for display purposes
+        if (isFinalized && stateNum === RWAProposalState.Succeeded) {
+          stateNum = RWAProposalState.Executed;
+        }
+
         items.push({ id: proposalId, proposer, targetUSDC, raisedUSDC, deadline, nftMetadataURI, state: stateNum });
       }
 
-      // Keep ONLY:
-      // - Active funding (deadline in future)
-      // - Succeeded but not yet finalized (creator needs to finalize)
+      // Show ALL proposals (active, ended, succeeded, failed, finalized)
       const nowSec = BigInt(Math.floor(Date.now() / 1000));
       console.log('[Projects] Built', items.length, 'items before filtering');
       console.log('[Projects] Items:', items.map(i => ({ id: i.id.toString(), state: i.state, deadline: i.deadline.toString(), target: i.targetUSDC.toString(), raised: i.raisedUSDC.toString() })));
-      const filtered = items.filter(p => {
-        const isFinalized = finalizedIds.has(p.id.toString());
-        if (isFinalized) {
-          console.log('[Projects] Skipping finalized proposal', p.id.toString());
-          return false;
-        }
-        const isActiveFunding = p.state === RWAProposalState.Funding && p.deadline > nowSec;
-        const isReadyToFinalize = p.state === RWAProposalState.Succeeded;
-        console.log('[Projects] Proposal', p.id.toString(), '- state:', p.state, 'deadline:', p.deadline.toString(), 'now:', nowSec.toString(), 'isActive:', isActiveFunding, 'isReady:', isReadyToFinalize);
-        return isActiveFunding || isReadyToFinalize;
-      });
-      console.log('[Projects] Filtered to', filtered.length, 'proposals');
-      if (isMounted) setProposals(filtered);
+      
+      // Sort by proposal ID (newest first)
+      const sorted = items.sort((a, b) => Number(b.id - a.id));
+      
+      console.log('[Projects] Showing all', sorted.length, 'proposals');
+      if (isMounted) setProposals(sorted);
 
       // Load metadata in background
-      for (const p of filtered) {
+      for (const p of sorted) {
         if (!isMounted) break;
         if (p.nftMetadataURI) {
           try {
@@ -413,7 +410,7 @@ export default function ProjectsPage() {
         {proposals.length === 0 ? (
           <div className="text-center py-12 bg-gray-800 rounded-lg">
             <div className="mb-4 text-6xl">📋</div>
-            <p className="text-xl text-gray-300 mb-2">No Active Funding Proposals</p>
+            <p className="text-xl text-gray-300 mb-2">No Funding Proposals Yet</p>
             <p className="text-gray-400">Create the first RWA tokenization project to get started!</p>
           </div>
         ) : (
@@ -467,14 +464,33 @@ export default function ProjectsPage() {
                     <p className="text-sm text-gray-400">
                       {getTimeRemaining(proposal.deadline)}
                     </p>
+                    {proposal.state === RWAProposalState.Executed && (
+                      <span className="px-2 py-1 bg-emerald-900 text-emerald-200 rounded text-xs font-medium">
+                        ✓ EXECUTED
+                      </span>
+                    )}
+                    {proposal.state === RWAProposalState.Succeeded && (
+                      <span className="px-2 py-1 bg-blue-900 text-blue-200 rounded text-xs font-medium">
+                        SUCCEEDED
+                      </span>
+                    )}
                     {proposal.state === RWAProposalState.Failed && (
                       <span className="px-2 py-1 bg-red-900 text-red-200 rounded text-xs font-medium">
                         FAILED
                       </span>
                     )}
+                    {proposal.state === RWAProposalState.Funding && canFinalize && (
+                      <span className="px-2 py-1 bg-yellow-900 text-yellow-200 rounded text-xs font-medium">
+                        ENDED
+                      </span>
+                    )}
                   </div>
 
-                  {proposal.state === RWAProposalState.Failed ? (
+                  {proposal.state === RWAProposalState.Executed ? (
+                    <div className="w-full bg-gray-600 text-gray-300 px-4 py-2 rounded text-center text-sm">
+                      Project Finalized - NFT Minted
+                    </div>
+                  ) : proposal.state === RWAProposalState.Failed ? (
                     <button
                       onClick={() => reclaimInvestment(proposal.id)}
                       className="w-full bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700"
