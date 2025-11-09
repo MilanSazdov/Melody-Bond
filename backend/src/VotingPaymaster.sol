@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {IPaymaster} from "./interfaces/IERC4337.sol";
 import {UserOperation} from "./interfaces/IERC4337.sol";
 import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 
 interface IDAO {

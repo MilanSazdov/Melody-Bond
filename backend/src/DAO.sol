@@ -2,22 +2,23 @@
 pragma solidity ^0.8.20;
 
 
-import "@openzeppelin/contracts/governance/Governor.sol";
-import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
-import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
-import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
-import "@openzeppelin/contracts/governance/TimelockController.sol";
-import "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol"; 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {Governor} from "@openzeppelin/contracts/governance/Governor.sol";
+import {GovernorTimelockControl} from "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.sol";
+import {GovernorVotes} from "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
+import {GovernorVotesQuorumFraction} from "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+import {GovernorCountingSimple} from "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol"; 
+import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Clones} from "@openzeppelin/contracts/proxy/Clones.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 
-import "./RWA.sol";
-import "./interfaces/IERC6551.sol";
-import "./RWAGovernor.sol";
-import "./GovToken.sol";
+import {RWA} from "./RWA.sol";
+import {IERC6551Registry} from "./interfaces/IERC6551.sol";
+import {RWAGovernor} from "./RWAGovernor.sol";
+import {GovToken} from "./GovToken.sol";
 
 contract DAO is
     Governor,
@@ -110,8 +111,8 @@ contract DAO is
         // Connect newly minted NFT ID with the proposal ID
         nftProposalId[newNftId] = proposalId;
         // Transfer all raised USDC to DAO treasury
-        uint256 totalRaised = proposal.raisedUSDC;
-        usdcToken.transfer(daoTreasury, totalRaised);
+    uint256 totalRaised = proposal.raisedUSDC;
+    require(usdcToken.transfer(daoTreasury, totalRaised), "USDC transfer failed");
 
         // Mint GOV tokene in the DAO treasury based on USDC raised
         uint256 govEquivalentTotal = totalRaised * (10 ** (18 - 6));
@@ -120,7 +121,7 @@ contract DAO is
         GovToken(address(token())).mint(daoTreasury, govEquivalentTotal);
 
         // Remmember shares for each investor
-        for (uint i = 0; i < proposal.investorList.length; i++) {
+        for (uint256 i = 0; i < proposal.investorList.length; i++) {
             address investor = proposal.investorList[i];
             uint256 usdcInvested = proposal.investors[investor];
             if (usdcInvested > 0) {
@@ -139,7 +140,15 @@ contract DAO is
     function _deployRWAGovernor(uint256 nftId) internal {
         // Create the TBA (wallet) for the NFT
         address tbaImplementation = 0x0000000000000000000000000000000000006551;
-        bytes32 salt = keccak256(abi.encodePacked(nftId, block.chainid));
+        bytes32 salt;
+        // Inline assembly keccak256 for slight gas optimization per warning (optional)
+        assembly {
+            // store nftId and chainid contiguously in memory
+            let ptr := mload(0x40)
+            mstore(ptr, nftId)
+            mstore(add(ptr, 0x20), chainid())
+            salt := keccak256(ptr, 0x40)
+        }
 
         address tbaAddress = erc6551Registry.createAccount(
             tbaImplementation,
@@ -162,9 +171,76 @@ contract DAO is
         rwaDaos[nftId] = newGovernor;
         isRWAGovernor[newGovernor] = true;
 
-        // Transfer ownership of the wallet (TBA) to RWAGovernor
-        Ownable(tbaAddress).transferOwnership(newGovernor);
+        // Attempt to transfer ownership of the wallet (TBA) to RWAGovernor if the implementation is Ownable.
+        // Many ERC-6551 reference accounts are not Ownable and derive authority from the NFT owner instead.
+        // If the TBA is not Ownable, this call will revert and be safely ignored here; ensure your TBA
+        // implementation authorizes RWAGovernor to execute (e.g., via custom validator/controller logic).
+        try Ownable(tbaAddress).transferOwnership(newGovernor) {
+            // Ownership transferred successfully on Ownable-compatible TBA implementations.
+        } catch {
+            // Non-Ownable TBA: no action. RWAGovernor must be authorized by the TBA's own rules.
+        }
         emit RWADeployed(nftId, newGovernor, tbaAddress);
+    }
+
+    // --- RWA Funding flow ---
+
+    function createRWAFundingProposal(uint256 _targetUSDC, string memory _nftMetadataURI) public {
+        uint256 id = nextRWAProposalId;
+        nextRWAProposalId = id + 1;
+
+        RWAProposal storage p = rwaProposals[id];
+        p.id = id;
+        p.proposer = msg.sender;
+        p.targetUSDC = _targetUSDC;
+        p.raisedUSDC = 0;
+        p.deadline = block.timestamp + RWA_FUNDING_PERIOD;
+        p.nftMetadataURI = _nftMetadataURI;
+        p.state = RWAProposalState.Funding;
+
+        emit RWAFundingProposalCreated(id, msg.sender, _targetUSDC, p.deadline);
+    }
+
+    function invest(uint256 proposalId, uint256 amount) public {
+        RWAProposal storage p = rwaProposals[proposalId];
+        require(p.state == RWAProposalState.Funding, "Not funding");
+        require(block.timestamp < p.deadline, "Deadline passed");
+        require(amount > 0, "Amount zero");
+
+        require(usdcToken.transferFrom(msg.sender, address(this), amount), "transferFrom failed");
+
+        // Add investor if first time
+        if (p.investors[msg.sender] == 0) {
+            p.investorList.push(msg.sender);
+        }
+
+        p.investors[msg.sender] += amount;
+        p.raisedUSDC += amount;
+
+        emit Invested(proposalId, msg.sender, amount);
+    }
+
+    function finalizeProposal(uint256 proposalId) public {
+        RWAProposal storage p = rwaProposals[proposalId];
+        require(block.timestamp >= p.deadline, "Too early");
+        require(p.state == RWAProposalState.Funding, "Already finalized");
+
+        if (p.raisedUSDC >= p.targetUSDC) {
+            _executeSuccess(proposalId);
+        } else {
+            p.state = RWAProposalState.Failed;
+            emit ProposalFinalized(proposalId, RWAProposalState.Failed);
+        }
+    }
+
+    function reclaimInvestment(uint256 proposalId) public {
+        RWAProposal storage p = rwaProposals[proposalId];
+        require(p.state == RWAProposalState.Failed, "Not failed");
+        uint256 amt = p.investors[msg.sender];
+        require(amt > 0, "Nothing to reclaim");
+        p.investors[msg.sender] = 0;
+        require(usdcToken.transfer(msg.sender, amt), "USDC transfer failed");
+        emit InvestmentReclaimed(proposalId, msg.sender, amt);
     }
 
 

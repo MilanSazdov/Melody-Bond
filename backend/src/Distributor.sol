@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./DAO.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {DAO} from "./DAO.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Helper contract for distributing funds to RWA NFT investors
 contract Distributor {
@@ -36,19 +36,18 @@ contract Distributor {
             ,
             ,
             ,
-    
-            uint256 totalRaisedUSDC,
+            uint256 totalRaisedUsdc,
             ,
             ,
-
+            
         ) = mainDao.rwaProposals(proposalId);
         // Total shares equal collected USDC (converted to 18 decimals)
-        uint256 totalShares = totalRaisedUSDC * (10**(18 - 6));
+        uint256 totalShares = totalRaisedUsdc * (10**(18 - 6));
         // Assumption: USDC = 6 decimals
         require(totalShares > 0, "Distributor: No shares found for this NFT");
         // Pull funds from the TBA wallet (which is msg.sender)
         // TBA must first approve this contract
-        token.transferFrom(msg.sender, address(this), totalAmount);
+    require(token.transferFrom(msg.sender, address(this), totalAmount), "transferFrom failed");
         // Get the list of all investors
         address[] memory investors = mainDao.getInvestorList(proposalId);
         // Iterate and send each their proportional share
@@ -60,7 +59,7 @@ contract Distributor {
                 // Calculate the proportional payout amount
                 uint256 payoutAmount = (totalAmount * investorShare) / totalShares;
                 if (payoutAmount > 0) {
-                    token.transfer(investor, payoutAmount);
+                    require(token.transfer(investor, payoutAmount), "transfer failed");
                 }
             }
         }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-import "forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 
 import {Script} from "forge-std/Script.sol";
 import {DAO} from "../src/DAO.sol";

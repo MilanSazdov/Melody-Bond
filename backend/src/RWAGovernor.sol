@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/governance/GovernorUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorCountingSimpleUpgradeable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {GovernorUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/GovernorUpgradeable.sol";
+import {GovernorCountingSimpleUpgradeable} from "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorCountingSimpleUpgradeable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
-import "./DAO.sol";
-import "./interfaces/IERC6551.sol";
+import {DAO} from "./DAO.sol";
+import {IERC6551Account} from "./interfaces/IERC6551.sol";
 
 /**
  * @title RWAGovernor (Upgradeable)
@@ -51,11 +51,7 @@ contract RWAGovernor is
      * @dev Returns the number of votes an account has.
      * Reads voting power from the `rwaShares` mapping in the main DAO contract.
      */
-    function _getVotes(
-        address account,
-        uint256 blockNumber,
-        bytes memory params
-    ) internal view override returns (uint256) {
+    function _getVotes(address account, uint256 /* blockNumber */, bytes memory /* params */) internal view override returns (uint256) {
         // Returns CURRENT voting power
         return mainDao.rwaShares(nftId, account);
     }
@@ -125,7 +121,7 @@ contract RWAGovernor is
         // 0 tokens needed to create a proposal
     }
 
-    function quorum(uint256 blockNumber) public pure override returns (uint256) {
+    function quorum(uint256 /* timepoint */) public pure override returns (uint256) {
         return 0;
         // 0 votes required for a proposal to pass
     }
