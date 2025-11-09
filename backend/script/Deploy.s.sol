@@ -1,100 +1,128 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
+import {console} from "forge-std/console.sol";
 
-import "forge-std/Script.sol";
-import "../src/GovToken.sol";
-import "../src/DAO.sol";
-import "../src/Timelock.sol";
-import "../src/RWA.sol";
-import "../src/VotingPaymaster.sol";
-import "../src/interfaces/IERC4337.sol";
+import {Script} from "forge-std/Script.sol";
+import {DAO} from "../src/DAO.sol";
+import {GovToken} from "../src/GovToken.sol";
+import {Timelock} from "../src/Timelock.sol";
+import {RWA} from "../src/RWA.sol";
+import {RWAGovernor} from "../src/RWAGovernor.sol";
+import {VotingPaymaster} from "../src/VotingPaymaster.sol";
+import {IVotes} from "@openzeppelin/contracts/governance/utils/IVotes.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol"; 
+
+import {Distributor} from "../src/Distributor.sol";
 
 contract Deploy is Script {
 
-    address public constant ENTRY_POINT = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
-
-    uint256 public constant TIMELOCK_MIN_DELAY = 60; 
-
-    uint256 public constant PAYMASTER_FUND_AMOUNT = 1 ether;
+    // --- Addresses for Sepolia Testnet ---
+    address constant USDC_ADDRESS = 0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8;
+    address constant ENTRYPOINT_ADDRESS = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+    address constant ERC6551_REGISTRY_ADDRESS = 0x000000006551c19487814612e58FE06813775758;
 
     function run() external {
-
-        string memory deployerPrivateKeyString = vm.envString("PRIVATE_KEY");
-        // Add '0x' prefix if missing (assuming it's a 64-char hex string)
-        if (bytes(deployerPrivateKeyString).length == 64 && !has0xPrefix(deployerPrivateKeyString)) {
-            deployerPrivateKeyString = string.concat("0x", deployerPrivateKeyString);
-        }
-        uint256 deployerPrivateKey = vm.parseUint(deployerPrivateKeyString);
-        if (deployerPrivateKey == 0) {
-            revert("Invalid PRIVATE_KEY in .env");
-        }
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployerAddress = vm.addr(deployerPrivateKey);
-        
+
         vm.startBroadcast(deployerPrivateKey);
 
-        console.log("Deploying GovToken...");
-        GovToken govToken = new GovToken();
-        console.log("GovToken deployed to:", address(govToken));
+        // --- Deploy GovToken ---
+        // Deployer is a temporary owner to be able to transfer ownership
+        GovToken govToken = new GovToken(deployerAddress);
+        console.log("GovToken deployed at:", address(govToken));
 
-        address[] memory proposers = new address[](1);
-        proposers[0] = deployerAddress;
-        address[] memory executors = new address[](1);
-        executors[0] = address(0);
+    // --- Deploy main Timelock ---
+    // Use empty proposers array to avoid granting open (address(0)) proposer/canceller role.
+    // Keep executors open (address(0)) so any address can execute queued ops after delay.
+    address[] memory proposers = new address[](0);
+    address[] memory executors = new address[](1);
+    executors[0] = address(0); // open execution
+        Timelock mainTimelock = new Timelock(
+            1 days, // 1-day minimum delay for the main DAO
+            proposers,
+            executors,
+            deployerAddress // Deployer is a temporary admin
+        );
+        console.log("Main Timelock deployed at:", address(mainTimelock)); 
+
+        // --- Deploy RWA (NFT) contract ---
+        // Deployer is a temporary owner
+        RWA rwaNft = new RWA(deployerAddress);
+        console.log("RWA NFT deployed at:", address(rwaNft)); 
+
+        // --- Deploy RWAGovernor LOGIC (Template) ---
+        // This is only a template that DAO.sol will clone
+        RWAGovernor rwaGovernorLogic = new RWAGovernor();
+        console.log("RWAGovernor logic (template) deployed at:", address(rwaGovernorLogic)); 
+
+        // --- Deploy main DAO contract ---
+        address daoTreasury = deployerAddress;
+        // For now, the treasury is the deployer
+        console.log("DAO Treasury (deployer) is:", daoTreasury);
+
+        DAO dao = new DAO( 
+            IVotes(address(govToken)),
+            // FIX: Cast mainTimelock address to payable
+            TimelockController(payable(address(mainTimelock))),
+            USDC_ADDRESS,
+            address(rwaNft),
+            ERC6551_REGISTRY_ADDRESS,
+            address(rwaGovernorLogic),
+            daoTreasury
+        );
+        console.log("DAO deployed at:", address(dao)); 
+
+        // Deploy Distributor and pass it the DAO contract address
+        // FIX: Cast dao address to payable
+        Distributor distributor = new Distributor(payable(address(dao)));
+        console.log("Distributor deployed at:", address(distributor));
+
+        // --- Deploy VotingPaymaster ---
+        VotingPaymaster paymaster = new VotingPaymaster(
+            address(govToken),
+            address(dao),
+            ENTRYPOINT_ADDRESS
+        );
+        console.log("VotingPaymaster deployed at:", address(paymaster));
+
+        // --- Link Ownerships and Roles (KEY PART) ---
+
+        console.log("Setting up roles and ownerships...");
         
-        console.log("Deploying Timelock...");
-        Timelock timelock = new Timelock(TIMELOCK_MIN_DELAY, proposers, executors, deployerAddress);
-        console.log("Timelock deployed to:", address(timelock));
+    // Configure roles with helper to avoid stack-too-deep
+    _setupTimelockRoles(mainTimelock, address(dao), deployerAddress);
 
-        console.log("Deploying DAO...");
-        DAO dao = new DAO(govToken, timelock);
-        console.log("DAO deployed to:", address(dao));
+        // Transfer ownership of RWA.sol to DAO
+        // (so that DAO can mint NFTs)
+    rwaNft.transferOwnership(address(dao));
+    require(rwaNft.owner() == address(dao), "RWA owner not DAO");
+    console.log("RWA ownership transferred to DAO."); 
 
-        console.log("Deploying RWA...");
-        RWA rwa = new RWA();
-        console.log("RWA deployed to:", address(rwa));
-
-        console.log("Deploying VotingPaymaster...");
-        VotingPaymaster paymaster = new VotingPaymaster(ENTRY_POINT, address(dao));
-        console.log("Paymaster deployed to:", address(paymaster));
+        // Transfer ownership of GovToken.sol to DAO
+        // (so that DAO can mint GOV tokens to the treasury)
+    govToken.transferOwnership(address(dao));
+    require(govToken.owner() == address(dao), "GovToken owner not DAO");
+    console.log("GovToken ownership transferred to DAO."); 
 
         vm.stopBroadcast();
-
-        console.log("Configuring roles...");
-        vm.startBroadcast(deployerPrivateKey);
-
-        bytes32 proposerRole = keccak256("PROPOSER_ROLE");
-        // executorRole removed as unused; uncomment if restricting executors later
-        // bytes32 executorRole = keccak256("EXECUTOR_ROLE");
-        bytes32 adminRole = keccak256("TIMELOCK_ADMIN_ROLE");
-
-        console.log("Granting PROPOSER_ROLE to DAO...");
-        timelock.grantRole(proposerRole, address(dao));
-        
-        console.log("Revoking deployer's PROPOSER_ROLE...");
-        timelock.revokeRole(proposerRole, deployerAddress); 
-        
-        console.log("Revoking deployer's TIMELOCK_ADMIN_ROLE...");
-        timelock.revokeRole(adminRole, deployerAddress);
-
-        console.log("Transferring RWA ownership to Timelock...");
-        rwa.transferOwnership(address(timelock));
-
-        console.log("Funding Paymaster with %s ETH...", PAYMASTER_FUND_AMOUNT / 1 ether);
-        paymaster.deposit{value: PAYMASTER_FUND_AMOUNT}();
-        console.log("Paymaster funded and deposited.");
-
-        console.log("Delegating deployer's votes...");
-        govToken.delegate(deployerAddress);
-        console.log("Votes delegated.");
-        
-        vm.stopBroadcast();
-
-        console.log("=== DEPLOYMENT AND SETUP COMPLETE ===");
     }
 
-    // Helper function to check if string starts with '0x'
-    function has0xPrefix(string memory str) internal pure returns (bool) {
-        bytes memory strBytes = bytes(str);
-        return strBytes.length >= 2 && strBytes[0] == 0x30 && (strBytes[1] == 0x78 || strBytes[1] == 0x58); // '0x' or '0X'
+    function _setupTimelockRoles(
+        Timelock mainTimelock,
+        address daoAddr,
+        address deployerAddr
+    ) internal {
+        bytes32 proposerRole = mainTimelock.PROPOSER_ROLE();
+        bytes32 cancellerRole = mainTimelock.CANCELLER_ROLE();
+        mainTimelock.grantRole(proposerRole, daoAddr);
+        mainTimelock.grantRole(cancellerRole, daoAddr);
+        require(mainTimelock.hasRole(proposerRole, daoAddr), "DAO proposer role failed");
+        require(mainTimelock.hasRole(cancellerRole, daoAddr), "DAO canceller role failed");
+
+        bytes32 adminRole = mainTimelock.DEFAULT_ADMIN_ROLE();
+        mainTimelock.renounceRole(adminRole, deployerAddr);
+        require(!mainTimelock.hasRole(adminRole, deployerAddr), "Admin renounce failed");
+        console.log("Timelock roles configured. DAO is proposer & canceller; deployer renounced admin.");
     }
 }
