@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import RWACatalog from "@/components/RWACatalog";
 
 export default function HomePage() {
   return (
@@ -208,27 +207,6 @@ export default function HomePage() {
                   </li>
                 </ul>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Projects */}
-      <section className="py-16 bg-gray-900">
-        <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-white mb-2">Featured Artists</h2>
-              <p className="text-gray-400">Discover talented artists seeking funding for their next project</p>
-            </div>
-            <RWACatalog />
-            <div className="text-center mt-8">
-              <Link 
-                href="/projects"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold transition-colors"
-              >
-                View All Artists →
-              </Link>
             </div>
           </div>
         </div>
