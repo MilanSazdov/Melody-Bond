@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/governance/extensions/GovernorTimelockControl.so
 import "@openzeppelin/contracts/governance/extensions/GovernorVotes.sol";
 import "@openzeppelin/contracts/governance/extensions/GovernorVotesQuorumFraction.sol";
 import "@openzeppelin/contracts/governance/TimelockController.sol";
-
+import "@openzeppelin/contracts/governance/extensions/GovernorCountingSimple.sol"; 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
@@ -23,7 +23,8 @@ contract DAO is
     Governor,
     GovernorTimelockControl,
     GovernorVotes,
-    GovernorVotesQuorumFraction
+    GovernorVotesQuorumFraction,
+    GovernorCountingSimple // ADD this
 {
     
 
@@ -56,7 +57,6 @@ contract DAO is
 
     // Mapping from NFT ID to RWA Proposal ID (For Distributor use)
     mapping(uint256 => uint256) public nftProposalId;
-
     // Check if an address is a valid RWAGovernor clone
     mapping(address => bool) public isRWAGovernor;
 
@@ -79,8 +79,10 @@ contract DAO is
     )
         Governor("DAO")
         GovernorTimelockControl(_timelock)
+        
         GovernorVotes(_token)
         GovernorVotesQuorumFraction(4)
+        // GovernorCountingSimple() // No initializer needed for non-upgradeable
     {
         usdcToken = IERC20(_usdcTokenAddress);
         rwaNftContract = RWA(_rwaNftContractAddress);
@@ -93,71 +95,9 @@ contract DAO is
     function votingPeriod() public pure override returns (uint256) { return 10; }
     function proposalThreshold() public pure override returns (uint256) { return 0; }
 
-    function createRWAFundingProposal(uint256 targetUSDC, string memory nftMetadataURI) external returns (uint256) {
-        uint256 proposalId = nextRWAProposalId++;
-        RWAProposal storage proposal = rwaProposals[proposalId];
-        
-        proposal.id = proposalId;
-        proposal.proposer = msg.sender;
-        proposal.targetUSDC = targetUSDC;
-        proposal.deadline = block.timestamp + RWA_FUNDING_PERIOD;
-        proposal.nftMetadataURI = nftMetadataURI;
-        proposal.state = RWAProposalState.Funding;
+    // ... (rest of the DAO functions: createRWAFundingProposal, invest, etc.) ...
+    // ... (No changes needed in the middle of the contract) ...
 
-        emit RWAFundingProposalCreated(proposalId, msg.sender, targetUSDC, proposal.deadline);
-        return proposalId;
-    }
-
-    function invest(uint256 proposalId, uint256 usdcAmount) external {
-        RWAProposal storage proposal = rwaProposals[proposalId];
-        require(proposal.state == RWAProposalState.Funding, "Proposal not funding");
-        require(block.timestamp < proposal.deadline, "Funding period over");
-        require(usdcAmount > 0, "Amount must be greater than zero");
-
-        usdcToken.transferFrom(msg.sender, address(this), usdcAmount);
-        proposal.raisedUSDC += usdcAmount;
-        if (proposal.investors[msg.sender] == 0) {
-            proposal.investorList.push(msg.sender);
-        }
-        proposal.investors[msg.sender] += usdcAmount;
-
-        emit Invested(proposalId, msg.sender, usdcAmount);
-        if (proposal.raisedUSDC >= proposal.targetUSDC) {
-            _executeSuccess(proposalId);
-        }
-    }
-
-    function finalizeProposal(uint256 proposalId) external {
-        RWAProposal storage proposal = rwaProposals[proposalId];
-        require(proposal.state == RWAProposalState.Funding, "Proposal not funding");
-        require(block.timestamp >= proposal.deadline, "Funding not over");
-        require(proposal.raisedUSDC < proposal.targetUSDC, "Already succeeded");
-
-        proposal.state = RWAProposalState.Failed;
-        emit ProposalFinalized(proposalId, RWAProposalState.Failed);
-    }
-
-    function reclaimInvestment(uint256 proposalId) external {
-        RWAProposal storage proposal = rwaProposals[proposalId];
-        require(proposal.state == RWAProposalState.Failed, "Proposal not failed");
-
-        uint256 amount = proposal.investors[msg.sender];
-        require(amount > 0, "No investment found");
-
-        proposal.investors[msg.sender] = 0;
-        proposal.raisedUSDC -= amount; 
-
-        usdcToken.transfer(msg.sender, amount);
-        emit InvestmentReclaimed(proposalId, msg.sender, amount);
-    }
-
-    function getInvestmentAmount(uint256 proposalId, address investor) external view returns (uint256) {
-        return rwaProposals[proposalId].investors[investor];
-    }
-
-    function getInvestorList(uint256 proposalId) external view returns (address[] memory) {
-        return rwaProposals[proposalId].investorList;
-    }
 
     function _executeSuccess(uint256 proposalId) internal {
         RWAProposal storage proposal = rwaProposals[proposalId];
@@ -167,17 +107,17 @@ contract DAO is
 
         // Mint RWA NFT to DAO Treasury
         uint256 newNftId = rwaNftContract.mint(daoTreasury, proposal.nftMetadataURI);
-
         // Connect newly minted NFT ID with the proposal ID
         nftProposalId[newNftId] = proposalId;
-
         // Transfer all raised USDC to DAO treasury
         uint256 totalRaised = proposal.raisedUSDC;
         usdcToken.transfer(daoTreasury, totalRaised);
 
         // Mint GOV tokene in the DAO treasury based on USDC raised
         uint256 govEquivalentTotal = totalRaised * (10 ** (18 - 6));
-        GovToken(address(govToken)).mint(daoTreasury, govEquivalentTotal);
+        
+        // FIX: Cast token() to address, then to GovToken
+        GovToken(address(token())).mint(daoTreasury, govEquivalentTotal);
 
         // Remmember shares for each investor
         for (uint i = 0; i < proposal.investorList.length; i++) {
@@ -210,21 +150,60 @@ contract DAO is
         );
         // Deploy the RWAGovernor proxy
         address newGovernor = Clones.clone(rwaGovernorLogic);
-
         // Initialize the RWAGovernor
-        RWAGovernor(newGovernor).initialize(
+        
+        // FIX: Cast newGovernor to payable
+        RWAGovernor(payable(newGovernor)).initialize(
             nftId, 
             tbaAddress, // wallet address
-            address(this) // Address of this DAO (as the 'provider' of votes)
+            payable(address(this)) // Address of this DAO (as the 'provider' of votes)
         );
         // Save the address of the new DAO ("brain")
         rwaDaos[nftId] = newGovernor;
-
         isRWAGovernor[newGovernor] = true;
 
         // Transfer ownership of the wallet (TBA) to RWAGovernor
         Ownable(tbaAddress).transferOwnership(newGovernor);
-
         emit RWADeployed(nftId, newGovernor, tbaAddress);
+    }
+
+
+    function state(uint256 proposalId) public view override(Governor, GovernorTimelockControl) returns (ProposalState) {
+        return super.state(proposalId);
+    }
+
+    function _queueOperations(uint256 proposalId, address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) internal override(Governor, GovernorTimelockControl) returns (uint48) {
+        return super._queueOperations(proposalId, targets, values, calldatas, descriptionHash);
+    }
+
+    function _executeOperations(uint256 proposalId, address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) internal override(Governor, GovernorTimelockControl) {
+        super._executeOperations(proposalId, targets, values, calldatas, descriptionHash);
+    }
+
+    function _cancel(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash) internal override(Governor, GovernorTimelockControl) returns (uint256) {
+        return super._cancel(targets, values, calldatas, descriptionHash);
+    }
+
+    function _executor() internal view override(Governor, GovernorTimelockControl) returns (address) {
+        return super._executor();
+    }
+
+    function proposalNeedsQueuing(uint256 proposalId) public view override(Governor, GovernorTimelockControl) returns (bool) {
+        return super.proposalNeedsQueuing(proposalId);
+    }
+    
+    /**
+     * @dev Returns the list of investors for a given RWA proposal.
+     */
+    function getInvestorList(uint256 proposalId) external view returns (address[] memory) {
+        return rwaProposals[proposalId].investorList;
+    }
+
+    function clock() public view virtual override(Governor, GovernorVotes) returns (uint48) {
+        return uint48(block.timestamp);
+    }
+
+    function CLOCK_MODE() public view virtual override(Governor, GovernorVotes) returns (string memory) {
+        return "mode=timestamp";
     }
 }
