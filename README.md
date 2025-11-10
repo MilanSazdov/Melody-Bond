@@ -6,6 +6,14 @@ We created a comprehensive portfolio and governance system for the RWA DAO platf
 
 ---
 
+## 🎥 Demo Video
+
+Watch a short end-to-end walkthrough of the app (portfolio, proposing, voting, execution):
+
+👉 https://youtu.be/M7pl_gSCFAQ
+
+---
+
 ## 📋 Completed Features
 
 ### 1. **Environment & Configuration Updates** ✅
