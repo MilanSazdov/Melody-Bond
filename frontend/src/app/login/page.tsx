@@ -1,7 +1,6 @@
 "use client"
 
 import { LoginButton } from '@/components/LoginButton'
-import { MetaMaskLoginButton } from '@/components/MetaMaskLoginButton'
 import PageHeader from '@/components/PageHeader'
 
 export default function LoginPage() {
@@ -13,15 +12,6 @@ export default function LoginPage() {
       />
       <section className="py-10">
         <div className="container space-y-6">
-          {/* MetaMask / EOA */}
-          <div className="card flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium">MetaMask Wallet</div>
-              <div className="text-xs text-zinc-400">Connect a standard wallet (EOA).</div>
-            </div>
-            <MetaMaskLoginButton />
-          </div>
-
           {/* Google + AA via Privy */}
           <div className="card flex items-center justify-between">
             <div>

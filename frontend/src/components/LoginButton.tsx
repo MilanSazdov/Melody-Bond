@@ -19,13 +19,13 @@ export function LoginButton() {
   if (!ready) return <button className="px-4 py-2 rounded bg-gray-700 text-white" disabled>Loading…</button>
   if (!authenticated)
     return (
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-col items-end gap-1 relative z-[10000]">
         <button
-          className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
+          className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium relative z-[10000]"
           onClick={async () => {
             setErr(null)
             try {
-              await login()
+              await login({ loginMethods: ['wallet', 'google'] })
             } catch (e: any) {
               const msg = String(e?.message || e)
               if (msg.toLowerCase().includes('not allowed') || msg.includes('403')) {
@@ -37,7 +37,7 @@ export function LoginButton() {
           }}
           disabled={!ready}
         >
-          Continue with Google (Smart Wallet)
+          {ready ? 'Continue with Google (Smart Wallet)' : 'Initializing…'}
         </button>
         {err && <span className="text-xs text-red-400 max-w-[280px] text-right">{err}</span>}
       </div>
