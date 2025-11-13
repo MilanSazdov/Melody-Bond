@@ -1,6 +1,6 @@
 # 🎵 MelodyBond: A New Harmony Between Artists and Fans
 
-![MelodyBond Banner](https://via.placeholder.com/1200x400?text=Melody+Bond+-+DeFi+for+Music)
+![MelodyBond Banner](./assets/cover-read.png)
 <div align="center">
 
 **The first decentralized protocol where fans become the record label.** Invest in artists, govern their career via DAO, and earn royalties directly through Token Bound Accounts.
