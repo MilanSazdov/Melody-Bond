@@ -3,6 +3,7 @@
 import { useAccount, useConnect, useDisconnect, useEnsName, useSwitchChain } from 'wagmi'
 import { sepolia } from 'wagmi/chains'
 import { useEffect, useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { usePrivy } from '@privy-io/react-auth'
 
 function shortAddress(addr?: string) {
@@ -18,7 +19,9 @@ export default function WalletConnect() {
   const { data: ensName } = useEnsName({ address, chainId: sepolia.id })
   const [showDisconnect, setShowDisconnect] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
   const { login: privyLogin, logout: privyLogout, ready: privyReady, authenticated } = usePrivy()
   const [privyError, setPrivyError] = useState<string | null>(null)
 
@@ -29,12 +32,39 @@ export default function WalletConnect() {
     setMounted(true)
   }, [])
 
-  // Close dropdown when clicking outside
+  // Recompute menu position (fixed, portal) to align with trigger's right edge
+  const computeMenuPosition = () => {
+    const trigger = triggerRef.current
+    if (!trigger) return
+    const rect = trigger.getBoundingClientRect()
+    const top = rect.bottom + window.scrollY + 8 // 8px gap
+    const right = window.innerWidth - rect.right
+    setMenuPos({ top, right })
+  }
+
+  useEffect(() => {
+    if (showDisconnect) {
+      computeMenuPosition()
+      const onResize = () => computeMenuPosition()
+      const onScroll = () => computeMenuPosition()
+      window.addEventListener('resize', onResize)
+      window.addEventListener('scroll', onScroll, { passive: true })
+      return () => {
+        window.removeEventListener('resize', onResize)
+        window.removeEventListener('scroll', onScroll)
+      }
+    }
+  }, [showDisconnect])
+
+  // Close dropdown when clicking outside (works with portal)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDisconnect(false)
-      }
+      const target = event.target as Node
+      const menuEl = menuRef.current
+      const triggerEl = triggerRef.current
+      const clickedMenu = !!(menuEl && menuEl.contains(target))
+      const clickedTrigger = !!(triggerEl && triggerEl.contains(target))
+      if (!clickedMenu && !clickedTrigger) setShowDisconnect(false)
     }
 
     if (showDisconnect) {
@@ -121,8 +151,9 @@ export default function WalletConnect() {
   }
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative">
       <button
+        ref={triggerRef}
         onClick={() => setShowDisconnect(!showDisconnect)}
         className={`px-4 py-2 rounded-md text-sm transition-colors shadow-md ${
           wrongNetwork 
@@ -146,8 +177,12 @@ export default function WalletConnect() {
           ⚠ Switch to Sepolia Network
         </button>
       )}
-      {showDisconnect && (
-        <div className="absolute top-full mt-2 right-0 bg-zinc-900 border border-zinc-800 rounded-md shadow-xl overflow-hidden min-w-[180px] z-[100]">
+      {showDisconnect && mounted && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 9999 }}
+          className="bg-zinc-900 border border-zinc-800 rounded-md shadow-xl overflow-hidden min-w-[180px]"
+        >
           <div className="px-4 py-2 bg-zinc-800/50 border-b border-zinc-700">
             <div className="text-xs text-zinc-400">Connected to</div>
             <div className="text-sm font-medium text-emerald-400">
@@ -182,7 +217,8 @@ export default function WalletConnect() {
               <span>Logout Google</span>
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
