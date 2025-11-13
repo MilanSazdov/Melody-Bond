@@ -3,6 +3,7 @@
 import { useAccount, useConnect, useDisconnect, useEnsName, useSwitchChain } from 'wagmi'
 import { sepolia } from 'wagmi/chains'
 import { useEffect, useState, useRef } from 'react'
+import { usePrivy } from '@privy-io/react-auth'
 
 function shortAddress(addr?: string) {
   if (!addr) return ''
@@ -18,6 +19,8 @@ export default function WalletConnect() {
   const [showDisconnect, setShowDisconnect] = useState(false)
   const [mounted, setMounted] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const { login: privyLogin, logout: privyLogout, ready: privyReady, authenticated } = usePrivy()
+  const [privyError, setPrivyError] = useState<string | null>(null)
 
   // Wrong network detection
   const wrongNetwork = chain && chain.id !== sepolia.id
@@ -71,15 +74,43 @@ export default function WalletConnect() {
   }
 
   if (!isConnected) {
+    const metaMaskConnector = connectors.find(
+      (c) => c.id === 'injected' || c.name.toLowerCase().includes('metamask')
+    )
     return (
       <div className="flex flex-col items-end gap-1">
-        <button
-          onClick={handleConnect}
-          disabled={isPending || !connectors[0]}
-          className="px-4 py-2 rounded-md bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
-        >
-          {isPending ? 'Connecting...' : '🔐 Login (Sepolia)'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleConnect}
+            disabled={isPending || !metaMaskConnector}
+            className="px-4 py-2 rounded-md bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
+          >
+            {isPending ? 'Connecting…' : 'Connect MetaMask'}
+          </button>
+          <button
+            onClick={async () => {
+              setPrivyError(null)
+              try {
+                await privyLogin()
+              } catch (e: any) {
+                const msg = String(e?.message || e)
+                if (msg.toLowerCase().includes('not allowed') || msg.includes('403')) {
+                  setPrivyError('Enable Google and whitelist http://127.0.0.1:3000 in Privy app settings.')
+                } else {
+                  setPrivyError('Login failed. Please try again.')
+                }
+              }
+            }}
+            disabled={!privyReady}
+            className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg"
+            title={privyReady ? '' : 'Initializing login…'}
+          >
+            Continue with Google
+          </button>
+          {privyError && (
+            <span className="text-xs text-red-400 self-center">{privyError}</span>
+          )}
+        </div>
         {error && (
           <span className="text-xs text-red-400">
             {error.message?.includes('rejected') ? 'Connection rejected' : 'Connection failed'}
@@ -140,8 +171,17 @@ export default function WalletConnect() {
             className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 text-red-400 hover:text-red-300 transition-colors flex items-center gap-2"
           >
             <span>🔓</span>
-            <span>Logout</span>
+            <span>Logout Wallet</span>
           </button>
+          {authenticated && (
+            <button
+              onClick={() => { setShowDisconnect(false); privyLogout() }}
+              className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 text-red-400 hover:text-red-300 transition-colors flex items-center gap-2 border-t border-zinc-800"
+            >
+              <span>🔒</span>
+              <span>Logout Google</span>
+            </button>
+          )}
         </div>
       )}
     </div>
