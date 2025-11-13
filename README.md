@@ -164,12 +164,42 @@ npm install
 npm run dev
 ```
 
-Create a .env.local file in the frontend/ directory with your keys (see .env.example):
+Create a `.env.local` file in the `frontend/` directory. You can copy the structure below, which includes the **live Sepolia contract addresses**.\
+**Note:** You will need to provide your own API keys (Infura/Alchemy, Privy, Pimlico) and a Relayer Private Key (a wallet with some Sepolia ETH).
 
 ```bash
-NEXT_PUBLIC_PRIVY_APP_ID=your_privy_id
-NEXT_PUBLIC_ALCHEMY_API_KEY=your_alchemy_key
-NEXT_PUBLIC_PIMLICO_API_KEY=your_pimlico_key
+# RPC and API Configuration
+# You can use Infura, Alchemy, or any other provider
+NEXT_PUBLIC_RPC_URL=https://sepolia.infura.io/v3/your_api_key_here
+NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
+ETHERSCAN_API_KEY=your_etherscan_api_key
+
+# ERC-4337 Account Abstraction (Pimlico)
+NEXT_PUBLIC_ENTRYPOINT=0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
+NEXT_PUBLIC_BUNDLER_URL=https://api.pimlico.io/v2/11155111/rpc?apikey=your_pimlico_api_key
+NEXT_PUBLIC_PIMLICO_API_KEY=your_pimlico_api_key
+
+# Deployed Contract Addresses (Sepolia)
+NEXT_PUBLIC_DAO_ADDRESS=0xd4E82Da26f771698a506aab4eAC056665268e857
+NEXT_PUBLIC_GOVTOKEN_ADDRESS=0x2F5Efd038D0015F400FA12D36197C61B2F909c1d
+NEXT_PUBLIC_TIMELOCK_ADDRESS=0x4443C7b91b59c553f3aD488bff68F97D802B279F
+NEXT_PUBLIC_RWA_NFT_ADDRESS=0xd757e4e7ae631a558c74382aE77C1546313E6016
+NEXT_PUBLIC_RWAGOVERNOR_LOGIC_ADDRESS=0xC797D7520f0AdBAEe7f4641F5AFa88A623fF354a
+NEXT_PUBLIC_DISTRIBUTOR_ADDRESS=0x4744C6D6749Af15eaCCf3c36ECec8e045a4B3afa
+NEXT_PUBLIC_VOTING_PAYMASTER_ADDRESS=0xb49bD1a56B9A8310f5e05026b51D792ab1A79871
+NEXT_PUBLIC_DAO_TREASURY_ADDRESS=0xf7bB047581E3B6FD5B2c744a533Abd1846ED09Ee
+
+# Backend Relayer (Must have Sepolia ETH)
+RELAYER_PRIVATE_KEY=your_private_key_do_not_commit_to_github
+
+# Testnet Token Addresses
+NEXT_PUBLIC_USDC_ADDRESS=0x1eA31CD06D5D86C9752e81e93764967a662De589
+NEXT_PUBLIC_ERC6551_REGISTRY_ADDRESS=0x000000006551c19487814612e58FE06813775758
+
+# Chain Configuration
+NEXT_PUBLIC_CHAIN_ID=11155111
+NEXT_PUBLIC_CHAIN_NAME=Sepolia
+NEXT_PUBLIC_DEPLOY_BLOCK=9595342
 ```
 
 Run the development server:
