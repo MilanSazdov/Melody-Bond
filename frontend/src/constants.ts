@@ -6,14 +6,14 @@
 //   import DAOArtifact from './abis/DAO.sol/DAO.json'
 
 // --- Sepolia Contract Addresses (Updated with your new deployments) ---
-export const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || '9595342');
-export const GOV_TOKEN_ADDRESS = '0x2F5Efd038D0015F400FA12D36197C61B2F909c1d' as const;
-export const TIMELOCK_ADDRESS = '0x4443C7b91b59c553f3aD488bff68F97D802B279F' as const;
-export const DAO_ADDRESS = '0xd4E82Da26f771698a506aab4eAC056665268e857' as const;
-export const RWA_ADDRESS = '0xd757e4e7ae631a558c74382aE77C1546313E6016' as const;
-export const VOTING_PAYMASTER_ADDRESS = '0xb49bD1a56B9A8310f5e05026b51D792ab1A79871' as const;
-export const DISTRIBUTOR_ADDRESS = '0x4744C6D6749Af15eaCCf3c36ECec8e045a4B3afa' as const;
-export const RWA_GOVERNOR_LOGIC_ADDRESS = '0xC797D7520f0AdBAEe7f4641F5AFa88A623fF354a' as const;
+export const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || '9630914');
+export const GOV_TOKEN_ADDRESS = '0xD546E8a7f37dB24dE9B637cb79B10f1c5885A51d' as const;
+export const TIMELOCK_ADDRESS = '0x5F42C1C914F671394478646740Bd6d59b4F86Ce5' as const;
+export const DAO_ADDRESS = '0x83300448E361038816368C9683D61dCF2d60954E' as const;
+export const RWA_ADDRESS = '0xAC2935e31C097eFB7Ea20A64163751FFD5870860' as const;
+export const VOTING_PAYMASTER_ADDRESS = '0x3207EEcBE70f58C3b553b683Aa3827B216f88314' as const;
+export const DISTRIBUTOR_ADDRESS = '0x679fddD3Ce087B15645D8fCb840AaE99a4aE9615' as const;
+export const RWA_GOVERNOR_LOGIC_ADDRESS = '0xc1328380074Dc46e35F3A8bb577Fba43b450d03b' as const;
 
 // NOTE: This address was not in your update list and remains unchanged.
 export const MARKET_ADDRESS = '0xcb7bdd15f77d7ac42b0b297eacde12e0132682b6' as const;
@@ -29,7 +29,7 @@ export const ERC6551_REGISTRY_ADDRESS = '0x000000006551c19487814612e58FE06813775
 export const ERC6551_IMPLEMENTATION_ADDRESS = '0x0000000000000000000000000000000000006551' as const;
 
 // Mock USDC
-export const MOCK_USDC_ADDRESS = '0x1eA31CD06D5D86C9752e81e93764967a662De589' as const;
+export const MOCK_USDC_ADDRESS = '0x832144D002bB8F32AbDCc576Aaaa8c2F3a3B1c95' as const;
 
 // --- ABIs ---
 // Minimal ABIs needed for current UI interactions.

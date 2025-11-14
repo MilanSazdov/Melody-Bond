@@ -8,6 +8,7 @@ import { publicClient } from "@/lib/clients";
 import { DAO_ADDRESS, DAO_ABI, RWA_GOVERNOR_ABI, RWA_ABI, RWA_ADDRESS } from "@/constants";
 import { ProposalState, VoteSupport } from "@/contracts";
 import { gaslessVoteRWA } from "@/lib/accountAbstraction";
+import { getUserRWAInvestments } from "@/lib/rwaGovernance";
 
 // Helper to parse metadata URI
 async function parseMetadataURI(uri: string): Promise<{ name?: string; image?: string }> {
@@ -185,50 +186,10 @@ export default function GovernancePage() {
         return;
       }
 
-      // Check if DAO is deployed
-      const code = await publicClient.getBytecode({ address: DAO_ADDRESS });
-      if (!code || code === '0x') {
-        if (isMounted) {
-          setRwas([]);
-          setLoading(false);
-        }
-        return;
-      }
+      // Use the same helper function as portfolio page to get all user investments
+      const userInvestments = await getUserRWAInvestments(publicClient, userAddress);
 
-      // Get block range
-      let fromBlock: bigint | undefined = undefined;
-      const deployBlock = process.env.NEXT_PUBLIC_DEPLOY_BLOCK?.trim();
-      if (deployBlock && /^\d+$/.test(deployBlock)) {
-        try { fromBlock = BigInt(deployBlock); } catch {}
-      }
-
-      let toBlock: bigint | 'latest' = 'latest';
-      try {
-        const blockNum = await publicClient.getBlockNumber();
-        if (blockNum !== undefined && blockNum !== null) {
-          toBlock = blockNum;
-        }
-      } catch (err) {
-        console.debug('[Governance] Using "latest" block instead of specific number');
-      }
-
-      // Fetch all RWA deployments
-      const rwaLogs = await publicClient.getLogs({
-        address: DAO_ADDRESS,
-        event: {
-          type: 'event',
-          name: 'RWADeployed',
-          inputs: [
-            { name: 'nftId', type: 'uint256', indexed: true },
-            { name: 'governor', type: 'address', indexed: false },
-            { name: 'tba', type: 'address', indexed: false },
-          ],
-        } as const,
-        ...(fromBlock !== undefined ? { fromBlock } : {}),
-        toBlock,
-      });
-
-      if (!rwaLogs || rwaLogs.length === 0) {
+      if (userInvestments.length === 0) {
         if (isMounted) {
           setRwas([]);
           setLoading(false);
@@ -237,51 +198,31 @@ export default function GovernancePage() {
       }
 
       // Load all RWA data in parallel
-      const rwaPromises = rwaLogs.map(async (log) => {
+      const rwaPromises = userInvestments.map(async (investment) => {
         try {
-          const nftId = log.args.nftId as bigint;
-          const governorAddress = log.args.governor as Address;
-          const tbaAddress = (log.args.tba as Address) || '0x0000000000000000000000000000000000000000';
+          console.log('[Governance] Processing investment:', investment);
+          const nftId = investment.nftId;
+          const governorAddress = investment.governorAddress;
+          const tbaAddress = investment.tbaAddress;
+          const shares = investment.shares;
 
-          if (!nftId || !governorAddress || governorAddress === '0x0000000000000000000000000000000000000000') {
+          console.log('[Governance] Extracted values - nftId:', nftId, 'governor:', governorAddress, 'shares:', shares);
+
+          if (nftId === undefined || nftId === null || !governorAddress || governorAddress === '0x0000000000000000000000000000000000000000') {
+            console.log('[Governance] Skipping - invalid data');
             return null;
           }
 
-          // Get user shares
-          let shares = 0n;
-          try {
-            shares = await publicClient.readContract({
-              address: DAO_ADDRESS,
-              abi: DAO_ABI,
-              functionName: 'rwaShares',
-              args: [nftId, userAddress]
-            }) as bigint;
-          } catch (err) {
-            console.debug('[Governance] Failed to read shares for NFT', nftId.toString());
-            shares = 0n;
-          }
+          // Get metadata from investment
+          let metadata: { name?: string; image?: string } = {
+            name: investment.metadata?.name,
+            image: investment.metadata?.image
+          };
 
-          // Skip if user has no shares
-          if (shares === 0n) return null;
-
-          // Get metadata
-          let metadata: { name?: string; image?: string } = {};
-          try {
-            const tokenURI = await publicClient.readContract({
-              address: RWA_ADDRESS,
-              abi: RWA_ABI,
-              functionName: 'tokenURI',
-              args: [nftId]
-            }) as string;
-            
-            if (tokenURI) {
-              metadata = await parseMetadataURI(tokenURI);
-            }
-          } catch {}
-
-          // Get proposals for this governor
+          // Get proposals for this governor (fetch from block 0 to ensure we get all historical proposals)
           let proposals: RWAProposalDisplay[] = [];
           try {
+            console.log('[Governance] Fetching proposal events for governor:', governorAddress);
             const pLogs = await publicClient.getLogs({
               address: governorAddress,
               event: {
@@ -299,9 +240,10 @@ export default function GovernancePage() {
                   { name: 'description', type: 'string', indexed: false },
                 ],
               } as const,
-              ...(fromBlock !== undefined ? { fromBlock } : {}),
-              toBlock,
+              fromBlock: BigInt(0),
+              toBlock: 'latest',
             });
+            console.log('[Governance] Found', pLogs?.length || 0, 'proposal events for governor:', governorAddress);
 
             if (pLogs && Array.isArray(pLogs) && pLogs.length > 0) {
               const proposalPromises = pLogs.map(async (pLog) => {
@@ -350,7 +292,13 @@ export default function GovernancePage() {
                   againstVotes = votes[0];
                   forVotes = votes[1];
                   abstainVotes = votes[2];
-                } catch {}
+                  
+                  console.log('[Governance] Proposal', proposalId.toString(), '- state:', state, 'votes:', { for: forVotes.toString(), against: againstVotes.toString() });
+                } catch (err) {
+                  console.warn('[Governance] Skipping proposal from old/incompatible governor deployment:', proposalId.toString());
+                  // Return null to filter out proposals from old deployments that can't be read
+                  return null;
+                }
 
                 return {
                   proposalId,
@@ -369,15 +317,19 @@ export default function GovernancePage() {
                 };
               });
 
-              proposals = await Promise.all(proposalPromises);
+              const allProposals = await Promise.all(proposalPromises);
+              // Filter out null proposals (from old/incompatible deployments)
+              proposals = allProposals.filter((p) => p !== null) as RWAProposalDisplay[];
               proposals.reverse(); // Most recent first
+              console.log('[Governance] Processed', proposals.length, 'valid proposals for governor:', governorAddress);
             } else {
-              console.debug('[Governance] No proposal logs found for governor', governorAddress);
+              console.log('[Governance] No proposal logs found for governor', governorAddress);
             }
           } catch (err) {
-            console.debug('[Governance] Failed to fetch proposals for governor', governorAddress, err);
+            console.error('[Governance] Failed to fetch proposals for governor', governorAddress, err);
           }
 
+          console.log('[Governance] Returning RWA data - nftId:', nftId.toString(), 'proposals:', proposals.length);
           return {
             nftId,
             governorAddress,
@@ -393,7 +345,9 @@ export default function GovernancePage() {
       });
 
       const results = await Promise.all(rwaPromises);
+      console.log('[Governance] Raw results:', results);
       const validRwas = results.filter((r) => r !== null) as RWASet[];
+      console.log('[Governance] Valid RWAs after filter:', validRwas);
 
       if (isMounted) {
         setRwas(validRwas);

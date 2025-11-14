@@ -68,15 +68,20 @@ contract RWAGovernor is
         bytes[] memory calldatas,
         bytes32 /* descriptionHash */
     ) internal override {
-        
+        address rwaAddress = address(mainDao.rwaNftContract());
         for (uint256 i = 0; i < targets.length; ++i) {
-            // Instruct the TBA wallet to execute the call
-            IERC6551Account(tbaAddress).executeCall(
-                targets[i],
-                values[i],
-                calldatas[i]
-           
-            );
+            if (targets[i] == rwaAddress) {
+                // The governor itself owns the NFT; call RWA directly to satisfy owner checks
+                (bool ok, ) = targets[i].call{value: values[i]}(calldatas[i]);
+                require(ok, "RWAGovernor: direct RWA call failed");
+            } else {
+                // Instruct the TBA wallet to execute the call, forwarding exact ETH value
+                IERC6551Account(tbaAddress).executeCall{value: values[i]}(
+                    targets[i],
+                    values[i],
+                    calldatas[i]
+                );
+            }
         }
     }
 
@@ -147,5 +152,10 @@ contract RWAGovernor is
     // Call the standard propose function with these actions
     // The investor check (msg.sender eligibility) is performed by super.propose
         return super.propose(targets, values, calldatas, description);
+    }
+
+    // Helper: current owner of the governed NFT (for frontend debugging)
+    function nftOwner() external view returns (address) {
+        return mainDao.rwaNftContract().ownerOf(nftId);
     }
 }

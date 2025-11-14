@@ -102,8 +102,8 @@ contract DAO is
         
         proposal.state = RWAProposalState.Succeeded;
 
-        // Mint RWA NFT to DAO Treasury
-        uint256 newNftId = rwaNftContract.mint(daoTreasury, proposal.nftMetadataURI);
+        // Mint RWA NFT to this DAO contract so we can transfer control deterministically
+        uint256 newNftId = rwaNftContract.mint(address(this), proposal.nftMetadataURI);
         // Connect newly minted NFT ID with the proposal ID
         nftProposalId[newNftId] = proposalId;
 
@@ -166,7 +166,9 @@ contract DAO is
 
         // CRITICAL: Transfer NFT ownership to the Governor so it can control the TBA
         // ERC-6551 TBAs derive authority from the NFT owner, so the Governor must own the NFT
-        rwaNftContract.safeTransferFrom(daoTreasury, newGovernor, nftId);
+        // Use transferFrom (not safe) to avoid requiring ERC721Receiver on the governor
+        rwaNftContract.transferFrom(address(this), newGovernor, nftId);
+        require(rwaNftContract.ownerOf(nftId) == newGovernor, "DAO: NFT transfer to governor failed");
 
         
         try Ownable(tbaAddress).transferOwnership(newGovernor) {
