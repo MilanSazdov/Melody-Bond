@@ -18,69 +18,47 @@ export default function PortfolioPage() {
   const [selectedNFT, setSelectedNFT] = useState<RWAInvestment | null>(null)
   const [showProposalModal, setShowProposalModal] = useState(false)
 
+  // Unified loading flow: fetch investments + balances together, once per address
   useEffect(() => {
     let isMounted = true
-    
-    async function load() {
-      if (!address) {
-        setInvestments([])
-        setLoading(false)
-        return
-      }
+    const addr = (address || '').toLowerCase()
 
+    const loadAll = async () => {
       setLoading(true)
       try {
-        console.log('[Portfolio] Fetching investments for', address)
-        const userInvestments = await getUserRWAInvestments(publicClient, address)
+        if (!addr) {
+          if (isMounted) setInvestments([])
+          return
+        }
+        console.log('[Portfolio] Fetching investments for', addr)
+        const userInvestments = await getUserRWAInvestments(publicClient, address as any)
         console.log('[Portfolio] Received', userInvestments.length, 'investments')
 
-        // Load balances for each investment (skip funding proposals with no TBA)
-        const investmentsWithBalances = await Promise.all(
+        const enriched = await Promise.all(
           userInvestments.map(async (inv) => {
-            // Skip TBA balance check for funding proposals
             if (inv.tbaAddress === '0x0000000000000000000000000000000000000000') {
-              return {
-                ...inv,
-                tbaBalance: BigInt(0),
-              }
+              return { ...inv, tbaBalance: 0n }
             }
-            
             try {
-              const balance = await getTBABalance(publicClient, inv.tbaAddress, CONTRACTS.USDC)
-              return {
-                ...inv,
-                tbaBalance: balance,
-              }
-            } catch (err) {
-              console.warn('[Portfolio] Error loading TBA balance for NFT', inv.nftId.toString(), err)
-              return {
-                ...inv,
-                tbaBalance: BigInt(0),
-              }
+              const bal = await getTBABalance(publicClient, inv.tbaAddress, CONTRACTS.USDC)
+              return { ...inv, tbaBalance: bal }
+            } catch (e) {
+              console.warn('[Portfolio] TBA balance read failed for', inv.nftId.toString(), e)
+              return { ...inv, tbaBalance: 0n }
             }
           })
         )
-
-        console.log('[Portfolio] Investments with balances:', investmentsWithBalances.length)
-
-        if (isMounted) {
-          setInvestments(investmentsWithBalances as any)
-        }
-      } catch (error) {
-        console.error('[Portfolio] Error loading investments:', error)
+        if (isMounted) setInvestments(enriched as any)
+      } catch (e) {
+        console.error('[Portfolio] Error loading portfolio:', e)
       } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
+        if (isMounted) setLoading(false)
       }
     }
-    
-    load()
-    
-    return () => {
-      isMounted = false
-    }
-  }, [address])
+
+    loadAll()
+    return () => { isMounted = false }
+  }, [(address || '').toLowerCase()])
 
   const handleProposeClick = (investment: RWAInvestment) => {
     setSelectedNFT(investment)
@@ -166,6 +144,18 @@ function AddFundsButton({ tbaAddress }: { tbaAddress: Address }) {
     
     const loadBalance = async () => {
       try {
+        // Pre-flight code existence check to avoid ContractFunctionExecutionError if USDC not deployed on current chain
+        let code: string | undefined = undefined
+        try {
+          code = await publicClient.getBytecode({ address: CONTRACTS.USDC })
+        } catch (codeErr) {
+          console.warn('[AddFunds] getBytecode failed for USDC', CONTRACTS.USDC, codeErr)
+        }
+        if (!code || code === '0x') {
+          console.warn('[AddFunds] USDC contract not deployed. Setting balance = 0.')
+          setUserBalance(0n)
+          return
+        }
         const balance = await publicClient.readContract({
           address: CONTRACTS.USDC,
           abi: USDC_ABI,
@@ -175,6 +165,7 @@ function AddFundsButton({ tbaAddress }: { tbaAddress: Address }) {
         setUserBalance(balance)
       } catch (err) {
         console.error('[AddFunds] Failed to load user USDC balance:', err)
+        setUserBalance(0n)
       }
     }
     
@@ -297,17 +288,46 @@ function InvestmentCard({
   const sharesFormatted = formatUnits(investment.shares, 18)
   const balanceFormatted = investment.tbaBalance !== undefined ? formatUnits(investment.tbaBalance, 6) : '0'
   
+  // Get image URL and handle IPFS
+  const getImageUrl = (imageUri?: string) => {
+    if (!imageUri) return null
+    if (imageUri.startsWith('ipfs://')) {
+      return imageUri.replace('ipfs://', 'https://ipfs.io/ipfs/')
+    }
+    return imageUri
+  }
+
+  const imageUrl = getImageUrl(investment.metadata?.image)
+
   return (
     <div className="bg-gray-800/60 border border-gray-700 rounded-lg overflow-hidden hover:border-emerald-600/50 transition-all group">
       <div className="aspect-video bg-gradient-to-br from-emerald-900/40 via-blue-900/40 to-purple-900/40 flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 group-hover:from-emerald-500/20 group-hover:to-blue-500/20 transition-all"></div>
-        {isFundingProposal ? (
-          <div className="text-center relative z-10">
-            <div className="text-4xl mb-2">⏳</div>
-            <span className="text-white text-2xl font-bold">Proposal #{investment.nftId.toString()}</span>
-          </div>
+        {imageUrl && !isFundingProposal ? (
+          <>
+            <img 
+              src={imageUrl} 
+              alt={investment.metadata?.name || `RWA #${investment.nftId.toString()}`}
+              className="absolute inset-0 w-full h-full object-cover"
+              onError={(e) => {
+                // Hide image if it fails to load
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/40 to-transparent"></div>
+            <span className="text-white text-5xl font-bold relative z-10 drop-shadow-lg">#{investment.nftId.toString()}</span>
+          </>
         ) : (
-          <span className="text-white text-5xl font-bold relative z-10">#{investment.nftId.toString()}</span>
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 group-hover:from-emerald-500/20 group-hover:to-blue-500/20 transition-all"></div>
+            {isFundingProposal ? (
+              <div className="text-center relative z-10">
+                <div className="text-4xl mb-2">⏳</div>
+                <span className="text-white text-2xl font-bold">Proposal #{investment.nftId.toString()}</span>
+              </div>
+            ) : (
+              <span className="text-white text-5xl font-bold relative z-10">#{investment.nftId.toString()}</span>
+            )}
+          </>
         )}
       </div>
 

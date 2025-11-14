@@ -29,7 +29,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <Providers>
-          <header className="border-b border-zinc-800 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950/90 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60">
+          <header className="border-b border-zinc-800 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950/90 backdrop-blur supports-[backdrop-filter]:bg-zinc-950/60 z-50 relative">
             <div className="container flex h-16 items-center justify-between">
               <div className="flex items-center gap-6">
                 <Link href="/" className="flex items-center gap-2">

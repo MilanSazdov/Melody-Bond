@@ -56,22 +56,22 @@
                  │                                      │
                  │ Creates & Tracks                     │ Reads Shares
                  ▼                                      ▼
-    ┌────────────────────────┐         ┌────────────────────────────────┐
-    │     RWA NFT CONTRACT   │         │   RWAGovernor (Per NFT)        │
-    │      (ERC-721)         │         │         (Clone)                │
-    │  0x914c81B1A6C3aCF7    │         │    One per RWA NFT             │
-    │                        │         │                                │
-    │  • tokenURI(nftId)     │         │  Storage:                      │
-    │  • setTokenURI(...)    │◄────────┤  • nftId = X                   │
-    │  • ownerOf(nftId)      │ Changes │  • tbaAddress = 0x...          │
-    └────────────────────────┘  via    │  • mainDao = DAO address       │
-                                Gov    │                                │
-                                       │  Functions:                    │
-                 ┌─────────────────────┤  • propose(...)                │
-                 │                     │  • castVote(...)               │
-                 │ Controls            │  • _getVotes(investor)         │
-                 ▼                     │    → reads DAO.rwaShares       │
-    ┌────────────────────────┐         └───────────┬────────────────────┘
+    ┌────────────────────────┐         ┌───────────────────────────────┐
+    │     RWA NFT CONTRACT   │         │   RWAGovernor (Per NFT)       │
+    │      (ERC-721)         │         │         (Clone)               │
+    │  0x914c81B1A6C3aCF7    │         │    One per RWA NFT            │
+    │                        │         │                               │
+    │  • tokenURI(nftId)     │         │  Storage:                     │
+    │  • setTokenURI(...)    │◄────────┤  • nftId = X                  │
+    │  • ownerOf(nftId)      │ Changes │  • tbaAddress = 0x...         │
+    └────────────────────────┘  via    │  • mainDao = DAO address      │
+                                Gov    │                               │
+                                       │  Functions:                   │
+                 ┌─────────────────────┤  • propose(...)               │
+                 │                     │  • castVote(...)              │
+                 │ Controls            │  • _getVotes(investor)        │
+                 ▼                     │    → reads DAO.rwaShares      │
+    ┌────────────────────────┐         └───────────┬───────────────────┘
     │   TBA Wallet (ERC-6551)│                     │
     │   Token Bound Account  │                     │ Executes
     │                        │                     │ Proposals
