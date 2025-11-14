@@ -2,7 +2,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           FRONTEND APPLICATION                               │
+│                           FRONTEND APPLICATION                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐
@@ -21,57 +21,57 @@
               ┌──────────────────────────────────────────┐
               │      lib/rwaGovernance.ts Library        │
               │                                          │
-              │  • getUserRWAInvestments()              │
-              │  • buildChangeNameProposal()            │
-              │  • buildChangeImageProposal()           │
-              │  • buildWithdrawProposal()              │
-              │  • getRWAProposals()                    │
-              │  • getUserVotingPower()                 │
-              │  • getTBABalance()                      │
+              │  • getUserRWAInvestments()               │
+              │  • buildChangeNameProposal()             │
+              │  • buildChangeImageProposal()            │
+              │  • buildWithdrawProposal()               │
+              │  • getRWAProposals()                     │
+              │  • getUserVotingPower()                  │
+              │  • getTBABalance()                       │
               └──────────────┬───────────────────────────┘
                              │
                              │ Web3 Calls
                              ▼
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          BLOCKCHAIN (SEPOLIA)                                │
+│                          BLOCKCHAIN (SEPOLIA)                               │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                              MAIN DAO CONTRACT                              │
-│                    0x132AD6fB8EaF3065C831Febf5788AbDa4B72c76C             │
+│                              MAIN DAO CONTRACT                             │
+│                    0x132AD6fB8EaF3065C831Febf5788AbDa4B72c76C              │
 │                                                                            │
 │  Storage:                                                                  │
-│  • rwaShares[nftId][investor] = shares     ← VOTING POWER                │
-│  • rwaDaos[nftId] = governorAddress        ← RWA GOVERNOR                │
-│  • nftProposalId[nftId] = proposalId       ← FUNDING PROPOSAL            │
-│  • rwaProposals[id] = {...}                ← PROPOSAL DATA               │
+│  • rwaShares[nftId][investor] = shares     ← VOTING POWER                  │
+│  • rwaDaos[nftId] = governorAddress        ← RWA GOVERNOR                  │
+│  • nftProposalId[nftId] = proposalId       ← FUNDING PROPOSAL              │
+│  • rwaProposals[id] = {...}                ← PROPOSAL DATA                 │
 │                                                                            │
 │  Functions:                                                                │
-│  • invest(proposalId, amount)              ← USER INVESTS USDC           │
-│  • finalizeProposal(proposalId)            ← CREATES NFT + TBA           │
-│  • rwaShares(nftId, investor)              ← READ VOTING POWER           │
-│  • rwaDaos(nftId)                          ← READ GOVERNOR ADDR          │
-└────────────────┬──────────────────────────────────────┬──────────────────┘
+│  • invest(proposalId, amount)              ← USER INVESTS USDC             │
+│  • finalizeProposal(proposalId)            ← CREATES NFT + TBA             │
+│  • rwaShares(nftId, investor)              ← READ VOTING POWER             │
+│  • rwaDaos(nftId)                          ← READ GOVERNOR ADDR            │
+└────────────────┬──────────────────────────────────────┬────────────────────┘
                  │                                      │
                  │ Creates & Tracks                     │ Reads Shares
                  ▼                                      ▼
     ┌────────────────────────┐         ┌────────────────────────────────┐
-    │     RWA NFT CONTRACT   │         │   RWAGovernor (Per NFT)       │
-    │      (ERC-721)         │         │         (Clone)               │
-    │  0x914c81B1A6C3aCF7    │         │    One per RWA NFT            │
-    │                        │         │                               │
-    │  • tokenURI(nftId)     │         │  Storage:                     │
-    │  • setTokenURI(...)    │◄────────┤  • nftId = X                  │
-    │  • ownerOf(nftId)      │ Changes │  • tbaAddress = 0x...         │
-    └────────────────────────┘  via    │  • mainDao = DAO address      │
-                                Gov    │                               │
-                                       │  Functions:                   │
-                 ┌─────────────────────┤  • propose(...)               │
-                 │                     │  • castVote(...)              │
-                 │ Controls            │  • _getVotes(investor)        │
-                 ▼                     │    → reads DAO.rwaShares      │
-    ┌────────────────────────┐         └───────────┬───────────────────┘
+    │     RWA NFT CONTRACT   │         │   RWAGovernor (Per NFT)        │
+    │      (ERC-721)         │         │         (Clone)                │
+    │  0x914c81B1A6C3aCF7    │         │    One per RWA NFT             │
+    │                        │         │                                │
+    │  • tokenURI(nftId)     │         │  Storage:                      │
+    │  • setTokenURI(...)    │◄────────┤  • nftId = X                   │
+    │  • ownerOf(nftId)      │ Changes │  • tbaAddress = 0x...          │
+    └────────────────────────┘  via    │  • mainDao = DAO address       │
+                                Gov    │                                │
+                                       │  Functions:                    │
+                 ┌─────────────────────┤  • propose(...)                │
+                 │                     │  • castVote(...)               │
+                 │ Controls            │  • _getVotes(investor)         │
+                 ▼                     │    → reads DAO.rwaShares       │
+    ┌────────────────────────┐         └───────────┬────────────────────┘
     │   TBA Wallet (ERC-6551)│                     │
     │   Token Bound Account  │                     │ Executes
     │                        │                     │ Proposals
@@ -109,15 +109,15 @@
     ┌─────────────────────────────────────┐
     │        INVESTOR WALLETS             │
     │                                     │
-    │  Alice (60% shares) → 600 USDC     │
-    │  Bob   (40% shares) → 400 USDC     │
+    │  Alice (60% shares) → 600 USDC      │
+    │  Bob   (40% shares) → 400 USDC      │
     │                                     │
-    │  Proportional to rwaShares!        │
+    │  Proportional to rwaShares!         │
     └─────────────────────────────────────┘
 
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                               FLOW DIAGRAMS                                  │
+│                               FLOW DIAGRAMS                                 │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ════════════════════════════════════════════════════════════════════════════
@@ -188,11 +188,11 @@ STEP 1: Create Proposal
 │ buildWithdrawProposal(nftId, amount) │
 │                                      │
 │ Returns:                             │
-│ targets = [USDC, Distributor]       │
-│ values = [0, 0]                     │
-│ calldatas = [                       │
-│   approve(Distributor, amount),     │
-│   distribute(nftId, amount, USDC)   │
+│ targets = [USDC, Distributor]        │
+│ values = [0, 0]                      │
+│ calldatas = [                        │
+│   approve(Distributor, amount),      │
+│   distribute(nftId, amount, USDC)    │
 │ ]                                    │
 └──────────────────────────────────────┘
 
@@ -218,26 +218,26 @@ STEP 3: Execution
 
 STEP 4: Distribution
 ┌──────────────────────────────────────────────────────┐
-│ Distributor.distribute(nftId, 1000, USDC)           │
+│ Distributor.distribute(nftId, 1000, USDC)            │
 │                                                      │
-│ 1. transferFrom(TBA, Distributor, 1000)             │
-│ 2. Get investors = DAO.getInvestorList(proposalId)  │
-│ 3. totalShares = 1000 (Alice: 600, Bob: 400)       │
+│ 1. transferFrom(TBA, Distributor, 1000)              │
+│ 2. Get investors = DAO.getInvestorList(proposalId)   │
+│ 3. totalShares = 1000 (Alice: 600, Bob: 400)         │
 │ 4. For Alice:                                        │
-│    payout = (1000 × 600) / 1000 = 600               │
-│    USDC.transfer(Alice, 600) ✓                      │
+│    payout = (1000 × 600) / 1000 = 600                │
+│    USDC.transfer(Alice, 600) ✓                       │
 │ 5. For Bob:                                          │
-│    payout = (1000 × 400) / 1000 = 400               │
-│    USDC.transfer(Bob, 400) ✓                        │
+│    payout = (1000 × 400) / 1000 = 400                │
+│    USDC.transfer(Bob, 400) ✓                         │
 └──────────────────────────────────────────────────────┘
 
 RESULT:
 ┌──────────────────────────────────────┐
-│ TBA Balance:    1000 → 0 USDC       │
+│ TBA Balance:    1000 → 0 USDC        │
 │ Alice Wallet:   +600 USDC            │
 │ Bob Wallet:     +400 USDC            │
 │                                      │
-│ ✓ Proportional distribution!        │
+│ ✓ Proportional distribution!         │
 └──────────────────────────────────────┘
 
 
