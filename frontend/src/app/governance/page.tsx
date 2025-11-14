@@ -606,15 +606,29 @@ export default function GovernancePage() {
     return states[state] || "Unknown";
   }
 
+  // Helper to get image URL (handle IPFS)
+  const getImageUrl = (imageUri?: string) => {
+    if (!imageUri) return null;
+    if (imageUri.startsWith('ipfs://')) {
+      return imageUri.replace('ipfs://', 'https://ipfs.io/ipfs/');
+    }
+    return imageUri;
+  };
+
   if (!address) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-300">
-        <div className="max-w-5xl mx-auto px-4 py-10">
-          <h1 className="text-4xl font-bold text-white mb-2">RWA Governance</h1>
-          <p className="text-sm text-gray-400 mb-8">Only proposals for RWAs you invested in are shown.</p>
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center">
-            <p className="text-lg mb-2">Please connect your wallet to view governance.</p>
-            <p className="text-sm text-gray-400">Invest in a project first to unlock proposals.</p>
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-black text-gray-300">
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <div className="text-center">
+            <div className="mb-8 text-7xl">🗳️</div>
+            <h1 className="text-5xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400">
+              RWA Governance
+            </h1>
+            <p className="text-xl text-gray-400 mb-8">Connect your wallet to participate in governance</p>
+            <div className="bg-gray-800/60 backdrop-blur-sm border border-gray-700 rounded-2xl p-12 max-w-md mx-auto">
+              <p className="text-lg mb-3">Please connect your wallet to view governance.</p>
+              <p className="text-sm text-gray-400">Invest in a project first to unlock voting power.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -623,11 +637,11 @@ export default function GovernancePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-300">
-        <div className="max-w-5xl mx-auto px-4 py-10">
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mb-4"></div>
-            <p className="text-gray-400">Loading governance data...</p>
+      <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-black text-gray-300">
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <div className="bg-gray-800/60 backdrop-blur-sm border border-gray-700 rounded-2xl p-16 text-center">
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-emerald-500 mb-6"></div>
+            <p className="text-xl text-gray-400">Loading governance data...</p>
           </div>
         </div>
       </div>
@@ -659,146 +673,304 @@ export default function GovernancePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-300">
-      <div className="max-w-5xl mx-auto px-4 py-10">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white mb-2">RWA Governance</h1>
-            <p className="text-sm text-gray-400">Only proposals for RWAs you invested in are shown. Your vote weight equals your shares for that NFT.</p>
-          </div>
-          <div className="flex gap-2 self-start sm:self-auto">
-            <button
-              onClick={handleCopyAddress}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm font-semibold transition"
-              title="Copy wallet address"
-            >
-              {copied ? '✓ Copied' : `📋 ${address?.slice(0, 6)}...${address?.slice(-4)}`}
-            </button>
-            <button
-              onClick={handleManualRefresh}
-              disabled={loading}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 text-white rounded text-sm font-semibold transition"
-            >
-              {loading ? 'Refreshing...' : 'Refresh'}
-            </button>
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-900 to-black text-gray-300">
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        {/* Header Section */}
+        <div className="mb-10">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-900/40 via-blue-900/40 to-purple-900/40 border border-emerald-500/20 p-8 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-40"></div>
+            
+            <div className="relative z-10">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-6">
+                <div>
+                  <h1 className="text-5xl font-bold mb-3 text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-blue-400 to-purple-400">
+                    Your Governance Dashboard
+                  </h1>
+                  <p className="text-lg text-gray-300">Vote on proposals for RWAs you've invested in</p>
+                </div>
+                <div className="flex gap-3 self-start md:self-auto">
+                  <button
+                    onClick={handleCopyAddress}
+                    className="px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 hover:border-emerald-500/50 text-emerald-400 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                    title="Copy wallet address"
+                  >
+                    {copied ? (
+                      <>
+                        <span className="text-base">✓</span>
+                        <span>Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-base">📋</span>
+                        <span>{address?.slice(0, 6)}...{address?.slice(-4)}</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleManualRefresh}
+                    disabled={loading}
+                    className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-lg font-semibold transition-all shadow-lg text-sm"
+                  >
+                    {loading ? '⏳ Refreshing...' : '🔄 Refresh'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gray-800/60 backdrop-blur-sm border border-emerald-500/20 rounded-xl p-4">
+                  <div className="text-3xl mb-2">🗳️</div>
+                  <div className="text-sm text-gray-400">Your RWAs</div>
+                  <div className="text-2xl font-bold text-emerald-400">{rwas.length}</div>
+                </div>
+                <div className="bg-gray-800/60 backdrop-blur-sm border border-blue-500/20 rounded-xl p-4">
+                  <div className="text-3xl mb-2">📋</div>
+                  <div className="text-sm text-gray-400">Active Proposals</div>
+                  <div className="text-2xl font-bold text-blue-400">
+                    {rwas.reduce((sum, rwa) => sum + rwa.proposals.filter(p => p.state === ProposalState.Active).length, 0)}
+                  </div>
+                </div>
+                <div className="bg-gray-800/60 backdrop-blur-sm border border-purple-500/20 rounded-xl p-4">
+                  <div className="text-3xl mb-2">💪</div>
+                  <div className="text-sm text-gray-400">Total Voting Power</div>
+                  <div className="text-2xl font-bold text-purple-400">
+                    {formatUnits(rwas.reduce((sum, rwa) => sum + rwa.userShares, BigInt(0)), 18)}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Empty State */}
         {rwas.length === 0 && (
-          <div className="bg-gray-800 rounded-lg p-8 text-center border border-gray-700">
-            <p className="text-lg">No voting power yet.</p>
-            <p className="text-sm text-gray-400 mt-2">Invest in a funding proposal to unlock RWA governance.</p>
+          <div className="text-center py-20 bg-gray-800/60 backdrop-blur-sm rounded-2xl border border-gray-700">
+            <div className="mb-6 text-8xl">🎯</div>
+            <p className="text-2xl text-gray-300 mb-3 font-semibold">No Voting Power Yet</p>
+            <p className="text-gray-400 mb-6">Invest in RWA projects to unlock governance participation</p>
           </div>
         )}
 
-        <div className="space-y-10">
-          {rwas.map(rwa => (
-            <div key={rwa.nftId.toString()} className="bg-gray-800 border border-gray-700 rounded-lg p-6">
-              <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <h2 className="text-2xl font-semibold text-white">
-                    {rwa.metadata?.name || `RWA NFT #${rwa.nftId.toString()}`}
-                  </h2>
-                  <p className="text-xs text-gray-400 mt-1 break-all">Governor: {rwa.governorAddress}</p>
-                  <p className="text-xs text-gray-500 break-all">TBA: {rwa.tbaAddress}</p>
-                </div>
-                <div className="text-sm bg-gray-700 px-4 py-2 rounded self-start sm:self-auto">
-                  Your Shares: <span className="text-white font-semibold">{formatUnits(rwa.userShares, 18)}</span>
-                </div>
-              </div>
-
-              {rwa.proposals.length === 0 && (
-                <div className="text-center py-6 border border-dashed border-gray-600 rounded">
-                  <p className="text-gray-400">No proposals yet for this RWA.</p>
-                </div>
-              )}
-
-              <div className="space-y-5">
-                {rwa.proposals.map(p => {
-                  const total = p.forVotes + p.againstVotes + p.abstainVotes;
-                  const pct = (v: bigint) => total === BigInt(0) ? "0%" : `${(Number(v) / Number(total) * 100).toFixed(1)}%`;
-                  const key = `${rwa.governorAddress}-${p.proposalId.toString()}`;
-                  return (
-                    <div key={p.proposalId.toString()} className="bg-gray-700/60 rounded-lg p-5 border border-gray-600">
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                        <div>
-                          <h3 className="text-lg font-semibold text-white break-words">{parseProposalDescription(p.description)}</h3>
-                          <p className="text-[11px] text-gray-400">ID: {p.proposalId.toString()} {p.voteStart && (<>
-                            | start {p.voteStart.toString()} end {p.voteEnd?.toString()}
-                          </> )}</p>
-                          {(p.proposer && address && p.proposer.toLowerCase() === address.toLowerCase()) && (
-                            <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded bg-indigo-900 text-indigo-200">You proposed</span>
-                          )}
-                        </div>
-                        <span className={`text-xs px-2 py-1 rounded self-start sm:self-auto ${
-                          p.state === ProposalState.Active ? "bg-green-900 text-green-200" :
-                          p.state === ProposalState.Succeeded ? "bg-blue-900 text-blue-200" :
-                          p.state === ProposalState.Defeated ? "bg-red-900 text-red-200" : "bg-gray-600 text-gray-300"
-                        }`}>{getProposalStateText(p.state)}</span>
+        {/* RWA Governance Cards */}
+        <div className="space-y-8">
+          {rwas.map(rwa => {
+            const imageUrl = getImageUrl(rwa.metadata?.image);
+            
+            return (
+              <div key={rwa.nftId.toString()} className="group/rwa">
+                {/* RWA Header */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-800/80 to-gray-800/40 border border-gray-700 hover:border-emerald-500/50 transition-all backdrop-blur-sm mb-6">
+                  {/* Background Image */}
+                  {imageUrl && (
+                    <>
+                      <div className="absolute inset-0 opacity-10">
+                        <img 
+                          src={imageUrl}
+                          alt={rwa.metadata?.name || ''}
+                          className="w-full h-full object-cover blur-sm"
+                        />
                       </div>
-
-                      <div className="grid grid-cols-3 gap-3 text-center mb-4">
-                        <div className="bg-gray-600/60 rounded p-2">
-                          <p className="text-[11px] text-gray-300">For</p>
-                          <p className="font-bold text-green-400 text-sm">{formatUnits(p.forVotes, 18)}</p>
-                          <p className="text-[10px] text-gray-400">{pct(p.forVotes)}</p>
-                        </div>
-                        <div className="bg-gray-600/60 rounded p-2">
-                          <p className="text-[11px] text-gray-300">Against</p>
-                          <p className="font-bold text-red-400 text-sm">{formatUnits(p.againstVotes, 18)}</p>
-                          <p className="text-[10px] text-gray-400">{pct(p.againstVotes)}</p>
-                        </div>
-                        <div className="bg-gray-600/60 rounded p-2">
-                          <p className="text-[11px] text-gray-300">Abstain</p>
-                          <p className="font-bold text-gray-200 text-sm">{formatUnits(p.abstainVotes, 18)}</p>
-                          <p className="text-[10px] text-gray-400">{pct(p.abstainVotes)}</p>
-                        </div>
+                      <div className="absolute inset-0 bg-gradient-to-r from-gray-900/90 to-gray-900/70"></div>
+                    </>
+                  )}
+                  
+                  <div className="relative z-10 p-6 flex flex-col md:flex-row md:items-center gap-6">
+                    {/* NFT Image/Icon */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-24 h-24 rounded-xl overflow-hidden border-2 border-emerald-500/50 shadow-lg">
+                        {imageUrl ? (
+                          <img 
+                            src={imageUrl}
+                            alt={rwa.metadata?.name || `RWA #${rwa.nftId}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-emerald-500 via-blue-500 to-purple-500 flex items-center justify-center text-3xl">
+                            🏢
+                          </div>
+                        )}
                       </div>
-
-                      <div className="text-[11px] text-gray-400 mb-3">Total Votes: {formatUnits(total, 18)} | Your Weight: {formatUnits(rwa.userShares, 18)}</div>
-
-                      {p.state === ProposalState.Active && (
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <button
-                            disabled={pendingVote === key || p.userHasVoted}
-                            onClick={() => voteOnRWAProposal(rwa.governorAddress, p.proposalId, VoteSupport.For)}
-                            className={`flex-1 px-3 py-2 rounded text-sm font-medium transition ${pendingVote === key || p.userHasVoted ? "bg-green-900 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"} text-white`}
-                          >{pendingVote === key ? "Submitting..." : p.userHasVoted ? "Already Voted" : "For"}</button>
-                          <button
-                            disabled={pendingVote === key || p.userHasVoted}
-                            onClick={() => voteOnRWAProposal(rwa.governorAddress, p.proposalId, VoteSupport.Against)}
-                            className={`flex-1 px-3 py-2 rounded text-sm font-medium transition ${pendingVote === key || p.userHasVoted ? "bg-red-900 cursor-not-allowed" : "bg-red-600 hover:bg-red-700"} text-white`}
-                          >{pendingVote === key ? "Submitting..." : p.userHasVoted ? "Already Voted" : "Against"}</button>
-                          <button
-                            disabled={pendingVote === key || p.userHasVoted}
-                            onClick={() => voteOnRWAProposal(rwa.governorAddress, p.proposalId, VoteSupport.Abstain)}
-                            className={`flex-1 px-3 py-2 rounded text-sm font-medium transition ${pendingVote === key || p.userHasVoted ? "bg-gray-800 cursor-not-allowed" : "bg-gray-600 hover:bg-gray-700"} text-white`}
-                          >{pendingVote === key ? "Submitting..." : p.userHasVoted ? "Already Voted" : "Abstain"}</button>
-                        </div>
-                      )}
-                      {p.state === ProposalState.Succeeded && (
-                        <div className="mt-3">
-                          <button
-                            disabled={pendingExec === `${rwa.governorAddress}-${p.proposalId.toString()}-exec`}
-                            onClick={() => executeProposal(rwa.governorAddress, p, rwa.nftId)}
-                            className={`w-full px-4 py-2 rounded text-sm font-semibold transition ${pendingExec === `${rwa.governorAddress}-${p.proposalId.toString()}-exec` ? 'bg-blue-900 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
-                          >
-                            {pendingExec === `${rwa.governorAddress}-${p.proposalId.toString()}-exec` ? 'Executing...' : 'Execute Proposal'}
-                          </button>
-                          <p className="text-[11px] text-gray-400 mt-2">Execute to apply changes (metadata update or fund distribution).</p>
-                        </div>
-                      )}
-                      {p.state === ProposalState.Executed && (
-                        <div className="mt-3 text-center text-xs font-semibold px-3 py-2 rounded bg-indigo-800 text-indigo-200">
-                          ✅ Executed
-                        </div>
-                      )}
+                      <div className="absolute -bottom-2 -right-2 px-2 py-1 bg-emerald-500 rounded-full text-xs font-bold text-white shadow-lg">
+                        #{rwa.nftId.toString()}
+                      </div>
                     </div>
-                  );
-                })}
+
+                    {/* RWA Info */}
+                    <div className="flex-1">
+                      <h2 className="text-2xl font-bold text-white mb-2 group-hover/rwa:text-emerald-400 transition-colors">
+                        {rwa.metadata?.name || `RWA NFT #${rwa.nftId.toString()}`}
+                      </h2>
+                      <div className="flex flex-wrap items-center gap-3 text-sm mb-2">
+                        <span className="px-3 py-1 bg-emerald-900/50 text-emerald-300 rounded-full text-xs font-medium border border-emerald-700/50">
+                          {rwa.proposals.length} Proposal{rwa.proposals.length !== 1 ? 's' : ''}
+                        </span>
+                        <span className="text-gray-400 font-mono text-xs">
+                          Governor: {rwa.governorAddress.slice(0, 8)}...{rwa.governorAddress.slice(-6)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <span className="text-gray-400 text-sm">Your Voting Power:</span>
+                          <span className="ml-2 text-emerald-400 font-bold text-lg">{formatUnits(rwa.userShares, 18)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Proposals */}
+                {rwa.proposals.length === 0 ? (
+                  <div className="text-center py-10 border-2 border-dashed border-gray-700 rounded-xl bg-gray-800/30">
+                    <div className="text-5xl mb-3">📭</div>
+                    <p className="text-gray-400">No proposals yet for this RWA</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-6 pl-0 md:pl-6">
+                    {rwa.proposals.map(p => {
+                      const total = p.forVotes + p.againstVotes + p.abstainVotes;
+                      const pct = (v: bigint) => total === BigInt(0) ? "0%" : `${(Number(v) / Number(total) * 100).toFixed(1)}%`;
+                      const key = `${rwa.governorAddress}-${p.proposalId.toString()}`;
+                      
+                      return (
+                        <div key={p.proposalId.toString()} className="group/proposal relative overflow-hidden bg-gray-800/60 backdrop-blur-sm border border-gray-700 hover:border-blue-500/50 rounded-xl transition-all shadow-lg hover:shadow-blue-500/10">
+                          <div className="p-6">
+                            {/* Proposal Header */}
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                              <div className="flex-1">
+                                <h3 className="text-xl font-bold text-white mb-2 group-hover/proposal:text-blue-400 transition-colors">
+                                  {parseProposalDescription(p.description)}
+                                </h3>
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                                  <span className="font-mono">ID: {p.proposalId.toString()}</span>
+                                  {(p.proposer && address && p.proposer.toLowerCase() === address.toLowerCase()) && (
+                                    <span className="px-2 py-1 rounded-full bg-purple-900/50 text-purple-300 border border-purple-700/50">
+                                      ✨ Your Proposal
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Status Badge */}
+                              <div className="self-start">
+                                <span className={`px-4 py-2 rounded-full text-xs font-bold ${
+                                  p.state === ProposalState.Active ? "bg-green-500/90 text-white shadow-lg shadow-green-500/50 animate-pulse" :
+                                  p.state === ProposalState.Succeeded ? "bg-blue-500/90 text-white shadow-lg" :
+                                  p.state === ProposalState.Defeated ? "bg-red-500/90 text-white shadow-lg" :
+                                  p.state === ProposalState.Executed ? "bg-emerald-500/90 text-white shadow-lg" :
+                                  "bg-gray-600/90 text-gray-300"
+                                }`}>
+                                  {p.state === ProposalState.Active && '🔴 ACTIVE'}
+                                  {p.state === ProposalState.Executed && '✓ EXECUTED'}
+                                  {p.state !== ProposalState.Active && p.state !== ProposalState.Executed && getProposalStateText(p.state).toUpperCase()}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Vote Stats */}
+                            <div className="grid grid-cols-3 gap-4 mb-5">
+                              <div className="bg-gradient-to-br from-green-900/40 to-green-900/20 border border-green-700/50 rounded-lg p-4 text-center">
+                                <div className="text-xs text-green-300 mb-1 font-medium">For</div>
+                                <div className="text-2xl font-bold text-green-400 mb-1">{formatUnits(p.forVotes, 18)}</div>
+                                <div className="text-xs text-green-300/70">{pct(p.forVotes)}</div>
+                              </div>
+                              <div className="bg-gradient-to-br from-red-900/40 to-red-900/20 border border-red-700/50 rounded-lg p-4 text-center">
+                                <div className="text-xs text-red-300 mb-1 font-medium">Against</div>
+                                <div className="text-2xl font-bold text-red-400 mb-1">{formatUnits(p.againstVotes, 18)}</div>
+                                <div className="text-xs text-red-300/70">{pct(p.againstVotes)}</div>
+                              </div>
+                              <div className="bg-gradient-to-br from-gray-700/40 to-gray-700/20 border border-gray-600/50 rounded-lg p-4 text-center">
+                                <div className="text-xs text-gray-300 mb-1 font-medium">Abstain</div>
+                                <div className="text-2xl font-bold text-gray-200 mb-1">{formatUnits(p.abstainVotes, 18)}</div>
+                                <div className="text-xs text-gray-400">{pct(p.abstainVotes)}</div>
+                              </div>
+                            </div>
+
+                            {/* Vote Info */}
+                            <div className="mb-5 p-3 bg-gray-900/50 rounded-lg border border-gray-700/50">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-400">Total Votes:</span>
+                                <span className="text-white font-semibold">{formatUnits(total, 18)}</span>
+                              </div>
+                              <div className="flex justify-between text-sm mt-1">
+                                <span className="text-gray-400">Your Voting Power:</span>
+                                <span className="text-emerald-400 font-semibold">{formatUnits(rwa.userShares, 18)}</span>
+                              </div>
+                            </div>
+
+                            {/* Voting Buttons */}
+                            {p.state === ProposalState.Active && (
+                              <div className="grid grid-cols-3 gap-3">
+                                <button
+                                  disabled={pendingVote === key || p.userHasVoted}
+                                  onClick={() => voteOnRWAProposal(rwa.governorAddress, p.proposalId, VoteSupport.For)}
+                                  className={`px-4 py-3 rounded-lg font-bold text-sm transition-all ${
+                                    pendingVote === key || p.userHasVoted 
+                                      ? "bg-green-900/50 cursor-not-allowed text-green-300/50" 
+                                      : "bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white shadow-lg hover:shadow-green-500/50"
+                                  }`}
+                                >
+                                  {pendingVote === key ? "⏳" : p.userHasVoted ? "✓ Voted" : "👍 For"}
+                                </button>
+                                <button
+                                  disabled={pendingVote === key || p.userHasVoted}
+                                  onClick={() => voteOnRWAProposal(rwa.governorAddress, p.proposalId, VoteSupport.Against)}
+                                  className={`px-4 py-3 rounded-lg font-bold text-sm transition-all ${
+                                    pendingVote === key || p.userHasVoted 
+                                      ? "bg-red-900/50 cursor-not-allowed text-red-300/50" 
+                                      : "bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white shadow-lg hover:shadow-red-500/50"
+                                  }`}
+                                >
+                                  {pendingVote === key ? "⏳" : p.userHasVoted ? "✓ Voted" : "👎 Against"}
+                                </button>
+                                <button
+                                  disabled={pendingVote === key || p.userHasVoted}
+                                  onClick={() => voteOnRWAProposal(rwa.governorAddress, p.proposalId, VoteSupport.Abstain)}
+                                  className={`px-4 py-3 rounded-lg font-bold text-sm transition-all ${
+                                    pendingVote === key || p.userHasVoted 
+                                      ? "bg-gray-800/50 cursor-not-allowed text-gray-400/50" 
+                                      : "bg-gradient-to-r from-gray-600 to-gray-500 hover:from-gray-700 hover:to-gray-600 text-white shadow-lg"
+                                  }`}
+                                >
+                                  {pendingVote === key ? "⏳" : p.userHasVoted ? "✓ Voted" : "🤷 Abstain"}
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Execute Button */}
+                            {p.state === ProposalState.Succeeded && (
+                              <div>
+                                <button
+                                  disabled={pendingExec === `${rwa.governorAddress}-${p.proposalId.toString()}-exec`}
+                                  onClick={() => executeProposal(rwa.governorAddress, p, rwa.nftId)}
+                                  className={`w-full px-6 py-4 rounded-lg font-bold transition-all ${
+                                    pendingExec === `${rwa.governorAddress}-${p.proposalId.toString()}-exec`
+                                      ? 'bg-blue-900/50 cursor-not-allowed text-blue-300/50' 
+                                      : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-blue-500/50'
+                                  }`}
+                                >
+                                  {pendingExec === `${rwa.governorAddress}-${p.proposalId.toString()}-exec` ? '⏳ Executing...' : '✨ Execute Proposal'}
+                                </button>
+                                <p className="text-xs text-gray-400 mt-3 text-center">
+                                  Execute to apply changes (metadata update or fund distribution)
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Executed Badge */}
+                            {p.state === ProposalState.Executed && (
+                              <div className="text-center px-4 py-4 rounded-lg bg-gradient-to-r from-emerald-900/50 to-blue-900/50 border border-emerald-500/50">
+                                <span className="text-emerald-400 font-bold text-lg">✅ Successfully Executed</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
