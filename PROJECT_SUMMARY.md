@@ -174,15 +174,20 @@ Governance (gasless voting) → Revenue Distribution
 
 All contracts deployed and verified:
 ```
-DAO:              0x93793508d9Aa1B6ECf6E92B470d8daB0D32BaC91
-GovToken:         0x5a679bDB706EBd1dCD8225A3F8b28C78e69D0CbF
-RWA NFT:          0x3D01e38F75f5B82b48A878C25c4F1d1c5a2F9E0a
-VotingPaymaster:  0xD3b84c0C5c5c46f38ea00417a7b64285F1A72849
+DAO:              0x83300448E361038816368C9683D61dCF2d60954E
+GovToken:         0xD546E8a7f37dB24dE9B637cb79B10f1c5885A51d
+Timelock:         0x5F42C1C914F671394478646740Bd6d59b4F86Ce5
+RWA NFT:          0xAC2935e31C097eFB7Ea20A64163751FFD5870860
+RWAGovernor Logic: 0xc1328380074Dc46e35F3A8bb577Fba43b450d03b
+Distributor:      0x679fddD3Ce087B15645D8fCb840AaE99a4aE9615
+VotingPaymaster:  0x3207EEcBE70f58C3b553b683Aa3827B216f88314
 EntryPoint:       0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789 (standard)
-USDC (test):      0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8
+USDC (test):      0x832144D002bB8F32AbDCc576Aaaa8c2F3a3B1c95
+Treasury:         0xf7bB047581E3B6FD5B2c744a533Abd1846ED09Ee
+Deploy Block:     9630914
 ```
 
-Pimlico Bundler: `https://api.pimlico.io/v2/11155111/rpc?apikey=pim_JUvXCq3FhKGRz9ThU2ZKcn`
+Pimlico Bundler: Configure with your own API key
 
 ## 🎓 How to Use (End-to-End Flow)
 
