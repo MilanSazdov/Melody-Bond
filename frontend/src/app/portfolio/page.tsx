@@ -288,17 +288,46 @@ function InvestmentCard({
   const sharesFormatted = formatUnits(investment.shares, 18)
   const balanceFormatted = investment.tbaBalance !== undefined ? formatUnits(investment.tbaBalance, 6) : '0'
   
+  // Get image URL and handle IPFS
+  const getImageUrl = (imageUri?: string) => {
+    if (!imageUri) return null
+    if (imageUri.startsWith('ipfs://')) {
+      return imageUri.replace('ipfs://', 'https://ipfs.io/ipfs/')
+    }
+    return imageUri
+  }
+
+  const imageUrl = getImageUrl(investment.metadata?.image)
+
   return (
     <div className="bg-gray-800/60 border border-gray-700 rounded-lg overflow-hidden hover:border-emerald-600/50 transition-all group">
       <div className="aspect-video bg-gradient-to-br from-emerald-900/40 via-blue-900/40 to-purple-900/40 flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 group-hover:from-emerald-500/20 group-hover:to-blue-500/20 transition-all"></div>
-        {isFundingProposal ? (
-          <div className="text-center relative z-10">
-            <div className="text-4xl mb-2">⏳</div>
-            <span className="text-white text-2xl font-bold">Proposal #{investment.nftId.toString()}</span>
-          </div>
+        {imageUrl && !isFundingProposal ? (
+          <>
+            <img 
+              src={imageUrl} 
+              alt={investment.metadata?.name || `RWA #${investment.nftId.toString()}`}
+              className="absolute inset-0 w-full h-full object-cover"
+              onError={(e) => {
+                // Hide image if it fails to load
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 via-gray-900/40 to-transparent"></div>
+            <span className="text-white text-5xl font-bold relative z-10 drop-shadow-lg">#{investment.nftId.toString()}</span>
+          </>
         ) : (
-          <span className="text-white text-5xl font-bold relative z-10">#{investment.nftId.toString()}</span>
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 group-hover:from-emerald-500/20 group-hover:to-blue-500/20 transition-all"></div>
+            {isFundingProposal ? (
+              <div className="text-center relative z-10">
+                <div className="text-4xl mb-2">⏳</div>
+                <span className="text-white text-2xl font-bold">Proposal #{investment.nftId.toString()}</span>
+              </div>
+            ) : (
+              <span className="text-white text-5xl font-bold relative z-10">#{investment.nftId.toString()}</span>
+            )}
+          </>
         )}
       </div>
 
