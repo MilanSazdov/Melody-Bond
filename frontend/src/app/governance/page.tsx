@@ -140,6 +140,7 @@ export default function GovernancePage() {
   const [loading, setLoading] = useState(true);
   const [pendingVote, setPendingVote] = useState<string | null>(null);
   const [pendingExec, setPendingExec] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Single effect with stable primitive dependency
   useEffect(() => {
@@ -646,6 +647,17 @@ export default function GovernancePage() {
     }
   };
 
+  const handleCopyAddress = async () => {
+    if (!address) return;
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy address:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-300">
       <div className="max-w-5xl mx-auto px-4 py-10">
@@ -654,13 +666,22 @@ export default function GovernancePage() {
             <h1 className="text-4xl font-bold text-white mb-2">RWA Governance</h1>
             <p className="text-sm text-gray-400">Only proposals for RWAs you invested in are shown. Your vote weight equals your shares for that NFT.</p>
           </div>
-          <button
-            onClick={handleManualRefresh}
-            disabled={loading}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 text-white rounded text-sm font-semibold transition self-start sm:self-auto"
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
+          <div className="flex gap-2 self-start sm:self-auto">
+            <button
+              onClick={handleCopyAddress}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm font-semibold transition"
+              title="Copy wallet address"
+            >
+              {copied ? '✓ Copied' : `📋 ${address?.slice(0, 6)}...${address?.slice(-4)}`}
+            </button>
+            <button
+              onClick={handleManualRefresh}
+              disabled={loading}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 text-white rounded text-sm font-semibold transition"
+            >
+              {loading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         {rwas.length === 0 && (

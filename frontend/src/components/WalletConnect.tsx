@@ -24,6 +24,7 @@ export default function WalletConnect() {
   const { login: privyLogin, logout: privyLogout, ready: privyReady, authenticated } = usePrivy()
   const [privyError, setPrivyError] = useState<string | null>(null)
   const [privyLoading, setPrivyLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   // Wrong network detection
   const wrongNetwork = chain && chain.id !== sepolia.id
@@ -81,6 +82,17 @@ export default function WalletConnect() {
   const handleSwitchToSepolia = () => {
     if (switchChain) {
       switchChain({ chainId: sepolia.id })
+    }
+  }
+
+  const handleCopyAddress = async () => {
+    if (!address) return
+    try {
+      await navigator.clipboard.writeText(address)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy address:', err)
     }
   }
 
@@ -182,6 +194,28 @@ export default function WalletConnect() {
               className="w-full px-4 py-2 text-left text-sm hover:bg-zinc-800 text-orange-400 hover:text-orange-300 transition-colors border-b border-zinc-800"
             >
               Switch to Sepolia
+            </button>
+          )}
+          {address && (
+            <button
+              onClick={handleCopyAddress}
+              className="w-full px-4 py-3 text-left text-sm hover:bg-zinc-800 transition-colors border-b border-zinc-800 group"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-zinc-400 mb-1">Wallet Address</div>
+                  <div className="text-xs font-mono text-emerald-400 truncate">
+                    {address}
+                  </div>
+                </div>
+                <div className="flex-shrink-0">
+                  {copied ? (
+                    <span className="text-emerald-400 text-lg">✓</span>
+                  ) : (
+                    <span className="text-zinc-500 group-hover:text-emerald-400 transition-colors text-lg">📋</span>
+                  )}
+                </div>
+              </div>
             </button>
           )}
           <button
