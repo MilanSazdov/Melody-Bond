@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWalletClient, useAccount } from 'wagmi';
-import { formatUnits, parseUnits, type Address, parseAbiItem } from 'viem';
+import { formatUnits, parseUnits, type Address } from 'viem';
 import { publicClient } from '@/lib/clients';
 import { CONTRACTS, DAO_ABI, USDC_ABI, RWAProposalState, usdcToShares } from '@/contracts';
 import { gaslessFinalize } from '@/lib/accountAbstraction';
@@ -34,41 +34,42 @@ export default function ProjectsPage() {
   const [usdcBalance, setUsdcBalance] = useState<bigint>(BigInt(0));
   const [usdcAllowance, setUsdcAllowance] = useState<bigint>(BigInt(0));
   const [pendingTxs, setPendingTxs] = useState<Record<string, { type: string; status: 'pending' | 'success' | 'error'; message?: string }>>({});
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const loadStartedRef = useRef(false);
 
   // Load proposals
   useEffect(() => {
+    // Prevent double execution in React 18 StrictMode (dev fast refresh)
+    if (loadStartedRef.current) return;
+    loadStartedRef.current = true;
     let isMounted = true;
-    
-    async function load() {
+
+    const run = async () => {
       try {
         setLoading(true);
+        setFetchError(null);
         console.log('[Projects] Starting loadProposals');
-        
         if (!CONTRACTS.DAO || !CONTRACTS.USDC) {
           console.warn('[Projects] Missing contract addresses', CONTRACTS);
           if (isMounted) setProposals([]);
           return;
         }
-        console.log('[Projects] DAO:', CONTRACTS.DAO, 'USDC:', CONTRACTS.USDC);
         if (!CONTRACTS.DAO.startsWith('0x') || CONTRACTS.DAO.length !== 42) {
           console.error('[Projects] Invalid DAO address', CONTRACTS.DAO);
           if (isMounted) setProposals([]);
           return;
         }
-
+        console.log('[Projects] DAO:', CONTRACTS.DAO, 'USDC:', CONTRACTS.USDC);
         await loadProposalsData(isMounted);
-      } catch (error) {
-        console.error('[Projects] Error in load:', error);
+      } catch (e: any) {
+        console.error('[Projects] Top-level load failed:', e);
+        if (isMounted) setFetchError(e?.message || 'Failed to load proposals');
       } finally {
         if (isMounted) setLoading(false);
       }
-    }
-    
-    load();
-    
-    return () => {
-      isMounted = false;
     };
+    run();
+    return () => { isMounted = false; };
   }, []);
 
   // Load USDC balance and allowance
@@ -86,10 +87,7 @@ export default function ProjectsPage() {
 
   async function loadProposalsData(isMounted: boolean) {
     try {
-
       // Discover proposals via events to avoid relying on nextRWAProposalId
-      let latestBlock: bigint | undefined;
-      try { latestBlock = await publicClient.getBlockNumber(); } catch {}
       let fromBlock = BigInt(0);
       if (process.env.NEXT_PUBLIC_DEPLOY_BLOCK) {
         const v = process.env.NEXT_PUBLIC_DEPLOY_BLOCK;
@@ -97,23 +95,45 @@ export default function ProjectsPage() {
           try { fromBlock = BigInt(v); } catch {}
         }
       }
+      const toBlock: bigint | 'latest' = 'latest';
 
-      // Fetch creation events
+      // Helper to safely fetch single-event logs (fallback empty array on failure)
+      const safeGetEventLogs = async (eventDesc: any): Promise<any[]> => {
+        try {
+          const logs = await publicClient.getLogs({
+            address: CONTRACTS.DAO,
+            event: eventDesc as any,
+            fromBlock,
+            toBlock,
+          });
+          return Array.isArray(logs) ? logs : [];
+        } catch (err) {
+          console.warn('[Projects] safeGetEventLogs failed for', eventDesc?.name, err);
+          return [];
+        }
+      };
+
+      // Fetch creation events (explicit ABI avoids parse issues)
       let createdLogs: any[] = [];
       try {
-        console.log('[Projects] Fetching events from block', fromBlock.toString(), 'to', latestBlock?.toString());
-        const createdEvent = parseAbiItem('event RWAFundingProposalCreated(uint256 indexed proposalId, address indexed proposer, uint256 targetUSDC, uint256 deadline)');
-        if ((createdEvent as any)?.inputs) {
-          createdLogs = await publicClient.getLogs({
-            address: CONTRACTS.DAO,
-            event: createdEvent,
-            ...(latestBlock ? { toBlock: latestBlock } : {}),
-            fromBlock,
-          });
-          console.log('[Projects] Got', createdLogs.length, 'RWAFundingProposalCreated events');
-        }
+        console.log('[Projects] Fetching RWAFundingProposalCreated logs from', fromBlock.toString(), 'to latest');
+        const RWAFundingProposalCreatedEvent = {
+          type: 'event',
+          name: 'RWAFundingProposalCreated',
+          inputs: [
+            { name: 'proposalId', type: 'uint256', indexed: true },
+            { name: 'proposer', type: 'address', indexed: true },
+            { name: 'targetUSDC', type: 'uint256', indexed: false },
+            { name: 'deadline', type: 'uint256', indexed: false },
+          ],
+        } as const;
+        createdLogs = await safeGetEventLogs(RWAFundingProposalCreatedEvent);
+        console.log('[Projects] Got', createdLogs.length, 'RWAFundingProposalCreated events');
       } catch (e) {
-        console.warn('[Projects] RWAFundingProposalCreated getLogs failed', e);
+        console.warn('[Projects] RWAFundingProposalCreated getLogs failed (will continue with empty list)', e);
+        if (isMounted && !createdLogs.length) {
+          setFetchError('Could not fetch funding proposal events.');
+        }
         createdLogs = [];
       }
       if (!Array.isArray(createdLogs)) createdLogs = [];
@@ -121,25 +141,26 @@ export default function ProjectsPage() {
       // Find finalized proposals and exclude them from list
       const finalizedIds = new Set<string>();
       try {
-        const deployedEvent = parseAbiItem('event RWADeployed(uint256 indexed nftId, address governor, address tba)');
-        if ((deployedEvent as any)?.inputs) {
-          const deployedLogs = await publicClient.getLogs({
-            address: CONTRACTS.DAO,
-            event: deployedEvent,
-            ...(latestBlock ? { toBlock: latestBlock } : {}),
-            fromBlock,
-          });
-          for (const dlog of (Array.isArray(deployedLogs) ? deployedLogs : [])) {
-            const nftId = (dlog as any)?.args?.nftId as bigint | undefined;
-            if (!nftId) continue;
-            try {
-              const pid = await publicClient.readContract({ address: CONTRACTS.DAO, abi: DAO_ABI, functionName: 'nftProposalId', args: [nftId] }) as bigint;
-              if (pid && pid !== BigInt(0)) finalizedIds.add(pid.toString());
-            } catch {}
-          }
+        const RWADeployedEvent = {
+          type: 'event',
+          name: 'RWADeployed',
+          inputs: [
+            { name: 'nftId', type: 'uint256', indexed: true },
+            { name: 'governor', type: 'address', indexed: false },
+            { name: 'tba', type: 'address', indexed: false },
+          ],
+        } as const;
+        const deployedLogs = await safeGetEventLogs(RWADeployedEvent);
+        for (const dlog of (Array.isArray(deployedLogs) ? deployedLogs : [])) {
+          const nftId = (dlog as any)?.args?.nftId as bigint | undefined;
+          if (!nftId) continue;
+          try {
+            const pid = await publicClient.readContract({ address: CONTRACTS.DAO, abi: DAO_ABI, functionName: 'nftProposalId', args: [nftId] }) as bigint;
+            if (pid && pid !== BigInt(0)) finalizedIds.add(pid.toString());
+          } catch {}
         }
       } catch (e) {
-        console.warn('[Projects] RWADeployed getLogs failed', e);
+        console.warn('[Projects] RWADeployed getLogs failed (continuing)', e);
       }
 
       // Build proposals from creation logs, enrich via rwaProposals if available
@@ -178,7 +199,9 @@ export default function ProjectsPage() {
       // Show ALL proposals (active, ended, succeeded, failed, finalized)
       const nowSec = BigInt(Math.floor(Date.now() / 1000));
       console.log('[Projects] Built', items.length, 'items before filtering');
-      console.log('[Projects] Items:', items.map(i => ({ id: i.id.toString(), state: i.state, deadline: i.deadline.toString(), target: i.targetUSDC.toString(), raised: i.raisedUSDC.toString() })));
+      if (items.length > 0) {
+        console.log('[Projects] Items:', items.map(i => ({ id: i.id.toString(), state: i.state, deadline: i.deadline.toString(), target: i.targetUSDC.toString(), raised: i.raisedUSDC.toString() })));
+      }
       
       // Sort by proposal ID (newest first)
       const sorted = items.sort((a, b) => Number(b.id - a.id));
@@ -220,8 +243,9 @@ export default function ProjectsPage() {
           console.log('[Projects] No metadata URI for proposal', p.id.toString());
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Projects] Error loading proposals:', error);
+      if (isMounted) setFetchError(error?.message || 'Failed to load proposals');
     }
   }
 
@@ -238,28 +262,68 @@ export default function ProjectsPage() {
     console.log('[Projects] USDC contract:', CONTRACTS.USDC, 'DAO contract:', CONTRACTS.DAO);
 
     try {
-      const [balance, allowance] = await Promise.all([
-        publicClient.readContract({
+      // Pre-flight: ensure USDC contract code exists on current chain to avoid ContractFunctionExecutionError ("0x" return data)
+      let code: string | undefined = undefined;
+      try {
+        code = await publicClient.getBytecode({ address: CONTRACTS.USDC });
+      } catch (codeErr) {
+        console.warn('[Projects] getBytecode failed for USDC address', CONTRACTS.USDC, codeErr);
+      }
+      if (!code || code === '0x') {
+        console.warn('[Projects] USDC contract not deployed on this network. Skipping balance/allowance reads.');
+        if (isMounted) {
+          setUsdcBalance(0n);
+          setUsdcAllowance(0n);
+        }
+        return;
+      }
+      // Safe sequential reads to isolate failures & suppress stack traces
+      const safeRead = async <T,>(fn: () => Promise<T>, label: string): Promise<T | undefined> => {
+        try {
+          return await fn();
+        } catch (err: any) {
+          const msg = (err?.message || '').toLowerCase();
+          if (msg.includes('returned no data') || msg.includes('execution error')) {
+            console.warn(`[Projects] ${label} unavailable (no data). Treating as zero.`);
+          } else {
+            console.warn(`[Projects] ${label} read failed`, err);
+          }
+          return undefined;
+        }
+      };
+
+      const balance = await safeRead(async () => {
+        return await publicClient.readContract({
           address: CONTRACTS.USDC,
           abi: USDC_ABI,
           functionName: 'balanceOf',
           args: [address],
-        }) as Promise<bigint>,
-        publicClient.readContract({
+        }) as bigint;
+      }, 'USDC balance');
+
+      const allowance = await safeRead(async () => {
+        return await publicClient.readContract({
           address: CONTRACTS.USDC,
           abi: USDC_ABI,
           functionName: 'allowance',
           args: [address, CONTRACTS.DAO],
-        }) as Promise<bigint>,
-      ]);
+        }) as bigint;
+      }, 'USDC allowance');
 
-      console.log('[Projects] USDC Balance:', balance.toString(), 'Allowance:', allowance.toString());
+      const finalBalance = typeof balance === 'bigint' ? balance : 0n;
+      const finalAllowance = typeof allowance === 'bigint' ? allowance : 0n;
+      console.log('[Projects] USDC Balance:', finalBalance.toString(), 'Allowance:', finalAllowance.toString());
       if (isMounted) {
-        setUsdcBalance(balance);
-        setUsdcAllowance(allowance);
+        setUsdcBalance(finalBalance);
+        setUsdcAllowance(finalAllowance);
       }
     } catch (error) {
       console.error('[Projects] Error loading USDC info:', error);
+      // On error, avoid throwing; set zeros to keep UI consistent
+      if (isMounted) {
+        setUsdcBalance(0n);
+        setUsdcAllowance(0n);
+      }
     }
   }
 
@@ -390,8 +454,14 @@ export default function ProjectsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-900">
-        <div className="text-xl text-white">Loading projects...</div>
+      <div className="min-h-screen bg-gray-900 text-gray-300">
+        <div className="container mx-auto px-4 py-10">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-12 text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mb-4"></div>
+            <p className="text-gray-400">Loading projects...</p>
+            {fetchError && <p className="text-red-400 text-xs mt-4">{fetchError}</p>}
+          </div>
+        </div>
       </div>
     );
   }
@@ -428,6 +498,11 @@ export default function ProjectsPage() {
           )}
         </div>
 
+        {fetchError && (
+          <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded text-red-300 text-sm">
+            {fetchError}
+          </div>
+        )}
         {proposals.length === 0 ? (
           <div className="text-center py-12 bg-gray-800 rounded-lg">
             <div className="mb-4 text-6xl">📋</div>

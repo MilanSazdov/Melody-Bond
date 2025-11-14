@@ -590,10 +590,30 @@ export default function GovernancePage() {
     return states[state] || "Unknown";
   }
 
+  if (!address) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-300">
+        <div className="max-w-5xl mx-auto px-4 py-10">
+          <h1 className="text-4xl font-bold text-white mb-2">RWA Governance</h1>
+          <p className="text-sm text-gray-400 mb-8">Only proposals for RWAs you invested in are shown.</p>
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-8 text-center">
+            <p className="text-lg mb-2">Please connect your wallet to view governance.</p>
+            <p className="text-sm text-gray-400">Invest in a project first to unlock proposals.</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-900">
-        <div className="text-xl text-white">Loading governance data...</div>
+      <div className="min-h-screen bg-gray-900 text-gray-300">
+        <div className="max-w-5xl mx-auto px-4 py-10">
+          <div className="bg-gray-800 border border-gray-700 rounded-lg p-12 text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mb-4"></div>
+            <p className="text-gray-400">Loading governance data...</p>
+          </div>
+        </div>
       </div>
     );
   }

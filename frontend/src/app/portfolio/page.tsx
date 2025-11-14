@@ -166,6 +166,18 @@ function AddFundsButton({ tbaAddress }: { tbaAddress: Address }) {
     
     const loadBalance = async () => {
       try {
+        // Pre-flight code existence check to avoid ContractFunctionExecutionError if USDC not deployed on current chain
+        let code: string | undefined = undefined
+        try {
+          code = await publicClient.getBytecode({ address: CONTRACTS.USDC })
+        } catch (codeErr) {
+          console.warn('[AddFunds] getBytecode failed for USDC', CONTRACTS.USDC, codeErr)
+        }
+        if (!code || code === '0x') {
+          console.warn('[AddFunds] USDC contract not deployed. Setting balance = 0.')
+          setUserBalance(0n)
+          return
+        }
         const balance = await publicClient.readContract({
           address: CONTRACTS.USDC,
           abi: USDC_ABI,
@@ -175,6 +187,7 @@ function AddFundsButton({ tbaAddress }: { tbaAddress: Address }) {
         setUserBalance(balance)
       } catch (err) {
         console.error('[AddFunds] Failed to load user USDC balance:', err)
+        setUserBalance(0n)
       }
     }
     

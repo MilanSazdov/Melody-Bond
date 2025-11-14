@@ -510,6 +510,17 @@ export async function getTBABalance(
   tokenAddress: Address = MOCK_USDC_ADDRESS
 ): Promise<bigint> {
   try {
+    // Verify token contract code exists to avoid "returned no data (0x)" errors when pointing at undeployed addresses
+    let code: string | undefined = undefined
+    try {
+      code = await publicClient.getBytecode({ address: tokenAddress })
+    } catch (codeErr) {
+      console.warn('[TBA] getBytecode failed for token', tokenAddress, codeErr)
+    }
+    if (!code || code === '0x') {
+      console.warn('[TBA] Token contract not deployed. Returning balance 0.')
+      return 0n
+    }
     const balance = await publicClient.readContract({
       address: tokenAddress,
       abi: ERC20_ABI,
