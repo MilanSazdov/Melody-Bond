@@ -37,8 +37,9 @@ export default function Proposals() {
         setLoading(true)
         setError(null)
 
+        const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || '0')
         const currentBlock = await publicClient.getBlockNumber()
-        const fromBlock = currentBlock > BigInt(10000) ? currentBlock - BigInt(10000) : BigInt(0)
+        const fromBlock = DEPLOY_BLOCK
 
         const logs = await publicClient.getLogs({
           address: DAO_ADDRESS,
@@ -58,7 +59,7 @@ export default function Proposals() {
             ],
           },
           fromBlock,
-          toBlock: currentBlock,
+          toBlock: 'latest',
         })
 
         if (!logs || logs.length === 0) {

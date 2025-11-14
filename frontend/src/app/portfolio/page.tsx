@@ -18,69 +18,47 @@ export default function PortfolioPage() {
   const [selectedNFT, setSelectedNFT] = useState<RWAInvestment | null>(null)
   const [showProposalModal, setShowProposalModal] = useState(false)
 
+  // Unified loading flow: fetch investments + balances together, once per address
   useEffect(() => {
     let isMounted = true
-    
-    async function load() {
-      if (!address) {
-        setInvestments([])
-        setLoading(false)
-        return
-      }
+    const addr = (address || '').toLowerCase()
 
+    const loadAll = async () => {
       setLoading(true)
       try {
-        console.log('[Portfolio] Fetching investments for', address)
-        const userInvestments = await getUserRWAInvestments(publicClient, address)
+        if (!addr) {
+          if (isMounted) setInvestments([])
+          return
+        }
+        console.log('[Portfolio] Fetching investments for', addr)
+        const userInvestments = await getUserRWAInvestments(publicClient, address as any)
         console.log('[Portfolio] Received', userInvestments.length, 'investments')
 
-        // Load balances for each investment (skip funding proposals with no TBA)
-        const investmentsWithBalances = await Promise.all(
+        const enriched = await Promise.all(
           userInvestments.map(async (inv) => {
-            // Skip TBA balance check for funding proposals
             if (inv.tbaAddress === '0x0000000000000000000000000000000000000000') {
-              return {
-                ...inv,
-                tbaBalance: BigInt(0),
-              }
+              return { ...inv, tbaBalance: 0n }
             }
-            
             try {
-              const balance = await getTBABalance(publicClient, inv.tbaAddress, CONTRACTS.USDC)
-              return {
-                ...inv,
-                tbaBalance: balance,
-              }
-            } catch (err) {
-              console.warn('[Portfolio] Error loading TBA balance for NFT', inv.nftId.toString(), err)
-              return {
-                ...inv,
-                tbaBalance: BigInt(0),
-              }
+              const bal = await getTBABalance(publicClient, inv.tbaAddress, CONTRACTS.USDC)
+              return { ...inv, tbaBalance: bal }
+            } catch (e) {
+              console.warn('[Portfolio] TBA balance read failed for', inv.nftId.toString(), e)
+              return { ...inv, tbaBalance: 0n }
             }
           })
         )
-
-        console.log('[Portfolio] Investments with balances:', investmentsWithBalances.length)
-
-        if (isMounted) {
-          setInvestments(investmentsWithBalances as any)
-        }
-      } catch (error) {
-        console.error('[Portfolio] Error loading investments:', error)
+        if (isMounted) setInvestments(enriched as any)
+      } catch (e) {
+        console.error('[Portfolio] Error loading portfolio:', e)
       } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
+        if (isMounted) setLoading(false)
       }
     }
-    
-    load()
-    
-    return () => {
-      isMounted = false
-    }
-  }, [address])
+
+    loadAll()
+    return () => { isMounted = false }
+  }, [(address || '').toLowerCase()])
 
   const handleProposeClick = (investment: RWAInvestment) => {
     setSelectedNFT(investment)

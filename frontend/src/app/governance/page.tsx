@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWalletClient, useAccount } from "wagmi";
 import { formatUnits, type Address, type Hex, keccak256, toHex } from "viem";
 import { publicClient } from "@/lib/clients";
@@ -8,31 +8,6 @@ import { publicClient } from "@/lib/clients";
 import { DAO_ADDRESS, DAO_ABI, RWA_GOVERNOR_ABI, RWA_ABI, RWA_ADDRESS } from "@/constants";
 import { ProposalState, VoteSupport } from "@/contracts";
 import { gaslessVoteRWA } from "@/lib/accountAbstraction";
-
-// Retry helper for RPC calls that return "0x" or fail transiently
-async function retryRead<T>(fn: () => Promise<T>, retries = 2, delayMs = 500): Promise<T | null> {
-  for (let i = 0; i <= retries; i++) {
-    try {
-      const result = await fn();
-      // Check for "0x" string return (viem sometimes returns this instead of throwing)
-      if (typeof result === 'string' && result === '0x') {
-        throw new Error('RPC returned 0x');
-      }
-      return result;
-    } catch (err: any) {
-      const msg = err?.message?.toLowerCase() || '';
-      if (msg.includes('0x') || msg.includes('no data')) {
-        if (i < retries) {
-          await new Promise(r => setTimeout(r, delayMs));
-          continue;
-        }
-      }
-      // On final retry or non-retryable error, return null
-      return null;
-    }
-  }
-  return null;
-}
 
 // Helper to parse metadata URI
 async function parseMetadataURI(uri: string): Promise<{ name?: string; image?: string }> {
@@ -166,12 +141,14 @@ export default function GovernancePage() {
   const [pendingVote, setPendingVote] = useState<string | null>(null);
   const [pendingExec, setPendingExec] = useState<string | null>(null);
 
+  // Single effect with stable primitive dependency
   useEffect(() => {
+    const addressKey = address ? address.toLowerCase() : '';
+    
     let isMounted = true;
-    let pollId: any;
     
     async function load() {
-      if (!address) {
+      if (!addressKey) {
         setRwas([]);
         setLoading(false);
         return;
@@ -179,219 +156,254 @@ export default function GovernancePage() {
       
       try {
         setLoading(true);
-  if (!DAO_ADDRESS) throw new Error("DAO address not configured");
-        await loadRWAGovernors(isMounted);
+        if (!DAO_ADDRESS) throw new Error("DAO address not configured");
+        
+        await loadRWAGovernors(address as Address, isMounted);
       } catch (error) {
-        console.error("[Governance] Error loading RWA governance data:", error);
+        console.error("[Governance] Error loading:", error);
+        if (isMounted) setRwas([]);
       } finally {
         if (isMounted) setLoading(false);
       }
     }
     
     load();
-
     
     return () => {
       isMounted = false;
     };
-  }, [address]);
+  }, [address ? address.toLowerCase() : '']);
 
-  async function loadRWAGovernors(isMounted: boolean) {
-    if (!address) return;
+  async function loadRWAGovernors(userAddress: Address, isMounted: boolean) {
     try {
-  if (!DAO_ADDRESS) { setRwas([]); return; }
-      const governors: RWASet[] = [];
-
-      // Determine scan upper bound using nextRWAProposalId (minted NFTs cannot exceed proposals)
-      let upperBound = 50n;
-      try {
-        const nextProposalId = await publicClient.readContract({
-          address: DAO_ADDRESS,
-          abi: DAO_ABI,
-          functionName: 'nextRWAProposalId'
-        }) as bigint;
-        upperBound = nextProposalId > 0n ? nextProposalId + 5n : 50n;
-      } catch (e) {
-        console.warn('[Governance] nextRWAProposalId read failed; using default upperBound', upperBound.toString());
+      if (!userAddress || !DAO_ADDRESS) {
+        if (isMounted) {
+          setRwas([]);
+          setLoading(false);
+        }
+        return;
       }
 
-      // Literal ABI for ProposalCreated to avoid parseAbiItem / event mapping issues
-      const proposalCreatedEvent = {
-        type: 'event',
-        name: 'ProposalCreated',
-        inputs: [
-          { name: 'proposalId', type: 'uint256', indexed: false },
-          { name: 'proposer', type: 'address', indexed: false },
-          { name: 'targets', type: 'address[]', indexed: false },
-          { name: 'values', type: 'uint256[]', indexed: false },
-          { name: 'signatures', type: 'string[]', indexed: false },
-          { name: 'calldatas', type: 'bytes[]', indexed: false },
-          { name: 'voteStart', type: 'uint256', indexed: false },
-          { name: 'voteEnd', type: 'uint256', indexed: false },
-          { name: 'description', type: 'string', indexed: false },
-        ],
-      } as const;
+      // Check if DAO is deployed
+      const code = await publicClient.getBytecode({ address: DAO_ADDRESS });
+      if (!code || code === '0x') {
+        if (isMounted) {
+          setRwas([]);
+          setLoading(false);
+        }
+        return;
+      }
 
+      // Get block range
       let fromBlock: bigint | undefined = undefined;
       const deployBlock = process.env.NEXT_PUBLIC_DEPLOY_BLOCK?.trim();
       if (deployBlock && /^\d+$/.test(deployBlock)) {
         try { fromBlock = BigInt(deployBlock); } catch {}
       }
 
-      let latestBlock: bigint | undefined;
+      let toBlock: bigint | 'latest' = 'latest';
       try {
-        latestBlock = await publicClient.getBlockNumber();
-      } catch {
-        latestBlock = undefined;
+        const blockNum = await publicClient.getBlockNumber();
+        if (blockNum !== undefined && blockNum !== null) {
+          toBlock = blockNum;
+        }
+      } catch (err) {
+        console.debug('[Governance] Using "latest" block instead of specific number');
       }
 
-      for (let nftId = 0n; nftId < upperBound; nftId++) {
-        // Governor presence indicates executed proposal minted this NFT
-        let governorAddress: Address;
-        try {
-          governorAddress = await publicClient.readContract({
-            address: DAO_ADDRESS,
-            abi: DAO_ABI,
-            functionName: 'rwaDaos',
-            args: [nftId]
-          }) as Address;
-        } catch {
-          continue;
+      // Fetch all RWA deployments
+      const rwaLogs = await publicClient.getLogs({
+        address: DAO_ADDRESS,
+        event: {
+          type: 'event',
+          name: 'RWADeployed',
+          inputs: [
+            { name: 'nftId', type: 'uint256', indexed: true },
+            { name: 'governor', type: 'address', indexed: false },
+            { name: 'tba', type: 'address', indexed: false },
+          ],
+        } as const,
+        ...(fromBlock !== undefined ? { fromBlock } : {}),
+        toBlock,
+      });
+
+      if (!rwaLogs || rwaLogs.length === 0) {
+        if (isMounted) {
+          setRwas([]);
+          setLoading(false);
         }
-        if (!governorAddress || governorAddress === '0x0000000000000000000000000000000000000000') continue;
+        return;
+      }
 
-        // User shares (treat errors as zero)
-        let shares: bigint = 0n;
-        const sharesResult = await retryRead(async () => {
-          return await publicClient.readContract({
-            address: DAO_ADDRESS,
-            abi: DAO_ABI,
-            functionName: 'rwaShares',
-            args: [nftId, address]
-          }) as bigint;
-        });
-        shares = sharesResult || 0n;
-        if (!sharesResult) {
-          console.warn('[Governance] rwaShares unavailable for nft', nftId.toString(), '- treating as 0');
-        }
-        if (shares === 0n) continue; // Skip RWAs user has no stake in
-
-        // Attempt to reconstruct TBA address via governor's tbaAddress() or deterministic salt? Governor exposes tbaAddress()
-        let tbaAddress: Address = '0x0000000000000000000000000000000000000000';
+      // Load all RWA data in parallel
+      const rwaPromises = rwaLogs.map(async (log) => {
         try {
-          const GOV_ABI_MIN = [{
-            type: 'function', name: 'tbaAddress', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }]
-          }] as const;
-          tbaAddress = await publicClient.readContract({
-            address: governorAddress,
-            abi: GOV_ABI_MIN,
-            functionName: 'tbaAddress'
-          }) as Address;
-        } catch {}
+          const nftId = log.args.nftId as bigint;
+          const governorAddress = log.args.governor as Address;
+          const tbaAddress = (log.args.tba as Address) || '0x0000000000000000000000000000000000000000';
 
-        // Gather proposals via event logs (optional). Failures produce empty list.
-        let proposals: RWAProposalDisplay[] = [];
-        try {
-          const pLogs = await publicClient.getLogs({
-            address: governorAddress,
-            event: proposalCreatedEvent,
-            ...(fromBlock !== undefined ? { fromBlock } : {}),
-            ...(latestBlock !== undefined ? { toBlock: latestBlock } : {}),
-          });
-          
-          // Safety check - getLogs
-          if (!pLogs || !Array.isArray(pLogs)) {
-            console.warn('[Governance] getLogs returned invalid data for', governorAddress);
-          } else {
-            for (const log of pLogs) {
-            const proposalId = log.args.proposalId as bigint;
-            const description = (log.args.description as string) || 'Untitled';
-            const proposer = log.args.proposer as Address | undefined;
-            const voteStart = log.args.voteStart as bigint | undefined;
-            const voteEnd = log.args.voteEnd as bigint | undefined;
-            const targets = (log.args.targets as Address[]) || [];
-            const values = (log.args.values as bigint[]) || [];
-            const calldatas = (log.args.calldatas as Hex[]) || [];
-            let state = 0;
-            let forVotes = 0n;
-            let againstVotes = 0n;
-            let abstainVotes = 0n;
-            try {
-              state = await publicClient.readContract({
-                address: governorAddress,
-                abi: RWA_GOVERNOR_ABI,
-                functionName: 'state',
-                args: [proposalId]
-              }) as number;
-              const votes = await publicClient.readContract({
-                address: governorAddress,
-                abi: RWA_GOVERNOR_ABI,
-                functionName: 'proposalVotes',
-                args: [proposalId]
-              }) as any;
-              againstVotes = votes[0];
-              forVotes = votes[1];
-              abstainVotes = votes[2];
-            } catch {}
-            let userHasVoted = false;
-            try {
-              const HAS_VOTED_ABI = [{
-                type: 'function', name: 'hasVoted', stateMutability: 'view', inputs: [
-                  { name: 'proposalId', type: 'uint256' },
-                  { name: 'account', type: 'address' }
-                ], outputs: [{ type: 'bool' }]
-              }] as const;
-              userHasVoted = await publicClient.readContract({
-                address: governorAddress,
-                abi: HAS_VOTED_ABI,
-                functionName: 'hasVoted',
-                args: [proposalId, address as Address]
-              }) as boolean;
-            } catch {}
-
-            // Optimistically promote Pending -> Active if current time surpassed voteStart
-            try {
-              if (state === 0 && voteStart && BigInt(Math.floor(Date.now()/1000)) > voteStart) {
-                state = 1; // Active
-              }
-              if (state === 1 && voteEnd && BigInt(Math.floor(Date.now()/1000)) > voteEnd) {
-                // If still reported Active but past end, mark Succeeded/Defeated needs final state call; keep as Active for now
-              }
-            } catch {}
-            proposals.push({ proposalId, description, state, forVotes, againstVotes, abstainVotes, userHasVoted, proposer, targets, values, calldatas });
-            }
+          if (!nftId || !governorAddress || governorAddress === '0x0000000000000000000000000000000000000000') {
+            return null;
           }
-        } catch (e) {
-          console.warn('[Governance] ProposalCreated getLogs failed for governor', governorAddress, e);
-        }
 
-        // Fetch tokenURI and parse metadata
-        let metadata: { name?: string; image?: string } = {};
-        const tokenURIResult = await retryRead(async () => {
-          return await publicClient.readContract({
-            address: RWA_ADDRESS,
-            abi: RWA_ABI,
-            functionName: 'tokenURI',
-            args: [nftId]
-          }) as string;
-        }, 1, 300); // Shorter retry for metadata (non-blocking)
-        
-        if (tokenURIResult) {
+          // Get user shares
+          let shares = 0n;
           try {
-            metadata = await parseMetadataURI(tokenURIResult);
-          } catch (parseErr) {
-            console.warn('[Governance] Metadata parse failed for NFT', nftId.toString());
+            shares = await publicClient.readContract({
+              address: DAO_ADDRESS,
+              abi: DAO_ABI,
+              functionName: 'rwaShares',
+              args: [nftId, userAddress]
+            }) as bigint;
+          } catch (err) {
+            console.debug('[Governance] Failed to read shares for NFT', nftId.toString());
+            shares = 0n;
           }
-        } else {
-          console.warn('[Governance] tokenURI unavailable for NFT', nftId.toString());
+
+          // Skip if user has no shares
+          if (shares === 0n) return null;
+
+          // Get metadata
+          let metadata: { name?: string; image?: string } = {};
+          try {
+            const tokenURI = await publicClient.readContract({
+              address: RWA_ADDRESS,
+              abi: RWA_ABI,
+              functionName: 'tokenURI',
+              args: [nftId]
+            }) as string;
+            
+            if (tokenURI) {
+              metadata = await parseMetadataURI(tokenURI);
+            }
+          } catch {}
+
+          // Get proposals for this governor
+          let proposals: RWAProposalDisplay[] = [];
+          try {
+            const pLogs = await publicClient.getLogs({
+              address: governorAddress,
+              event: {
+                type: 'event',
+                name: 'ProposalCreated',
+                inputs: [
+                  { name: 'proposalId', type: 'uint256', indexed: false },
+                  { name: 'proposer', type: 'address', indexed: false },
+                  { name: 'targets', type: 'address[]', indexed: false },
+                  { name: 'values', type: 'uint256[]', indexed: false },
+                  { name: 'signatures', type: 'string[]', indexed: false },
+                  { name: 'calldatas', type: 'bytes[]', indexed: false },
+                  { name: 'voteStart', type: 'uint256', indexed: false },
+                  { name: 'voteEnd', type: 'uint256', indexed: false },
+                  { name: 'description', type: 'string', indexed: false },
+                ],
+              } as const,
+              ...(fromBlock !== undefined ? { fromBlock } : {}),
+              toBlock,
+            });
+
+            if (pLogs && Array.isArray(pLogs) && pLogs.length > 0) {
+              const proposalPromises = pLogs.map(async (pLog) => {
+                const proposalId = pLog.args.proposalId as bigint;
+                const description = (pLog.args.description as string) || 'Untitled';
+                const proposer = pLog.args.proposer as Address | undefined;
+                const voteStart = pLog.args.voteStart as bigint | undefined;
+                const voteEnd = pLog.args.voteEnd as bigint | undefined;
+                const targets = (pLog.args.targets as Address[]) || [];
+                const values = (pLog.args.values as bigint[]) || [];
+                const calldatas = (pLog.args.calldatas as Hex[]) || [];
+
+                let state = 0;
+                let forVotes = 0n;
+                let againstVotes = 0n;
+                let abstainVotes = 0n;
+                let userHasVoted = false;
+
+                try {
+                  [state, userHasVoted] = await Promise.all([
+                    publicClient.readContract({
+                      address: governorAddress,
+                      abi: RWA_GOVERNOR_ABI,
+                      functionName: 'state',
+                      args: [proposalId]
+                    }) as Promise<number>,
+                    publicClient.readContract({
+                      address: governorAddress,
+                      abi: [{
+                        type: 'function', name: 'hasVoted', stateMutability: 'view',
+                        inputs: [{ name: 'proposalId', type: 'uint256' }, { name: 'account', type: 'address' }],
+                        outputs: [{ type: 'bool' }]
+                      }] as const,
+                      functionName: 'hasVoted',
+                      args: [proposalId, userAddress]
+                    }) as Promise<boolean>
+                  ]);
+
+                  const votes = await publicClient.readContract({
+                    address: governorAddress,
+                    abi: RWA_GOVERNOR_ABI,
+                    functionName: 'proposalVotes',
+                    args: [proposalId]
+                  }) as any;
+                  
+                  againstVotes = votes[0];
+                  forVotes = votes[1];
+                  abstainVotes = votes[2];
+                } catch {}
+
+                return {
+                  proposalId,
+                  description,
+                  state,
+                  forVotes,
+                  againstVotes,
+                  abstainVotes,
+                  userHasVoted,
+                  proposer,
+                  voteStart,
+                  voteEnd,
+                  targets,
+                  values,
+                  calldatas
+                };
+              });
+
+              proposals = await Promise.all(proposalPromises);
+              proposals.reverse(); // Most recent first
+            } else {
+              console.debug('[Governance] No proposal logs found for governor', governorAddress);
+            }
+          } catch (err) {
+            console.debug('[Governance] Failed to fetch proposals for governor', governorAddress, err);
+          }
+
+          return {
+            nftId,
+            governorAddress,
+            tbaAddress,
+            userShares: shares,
+            proposals,
+            metadata
+          };
+        } catch (error) {
+          console.error('[Governance] Error loading RWA:', error);
+          return null;
         }
+      });
 
-        governors.push({ nftId, governorAddress, tbaAddress, userShares: shares, proposals: proposals.reverse(), metadata });
+      const results = await Promise.all(rwaPromises);
+      const validRwas = results.filter((r) => r !== null) as RWASet[];
+
+      if (isMounted) {
+        setRwas(validRwas);
+        setLoading(false);
       }
-
-      if (isMounted) setRwas(governors);
     } catch (error) {
-      console.error('[Governance] Error loading RWA governors:', error);
+      console.error('[Governance] Error in loadRWAGovernors:', error);
+      if (isMounted) {
+        setRwas([]);
+        setLoading(false);
+      }
     }
   }
 
@@ -435,14 +447,15 @@ export default function GovernancePage() {
         // user rejection; ignore
       } else if (msg.includes('71c6af49') || msg.includes('not currently active')) {
         // Governor revert: vote not currently active; refresh state
-        console.warn('[Governance] Vote attempted while proposal not Active yet. Refreshing states.');
-        await loadRWAGovernors(true);
+        console.warn('[Governance] Vote attempted while proposal not Active yet.');
       } else {
         console.error('Error voting:', error);
       }
     } finally {
       setPendingVote(null);
-      await loadRWAGovernors(true);
+      if (address) {
+        await loadRWAGovernors(address, true);
+      }
     }
   }
 
@@ -572,7 +585,9 @@ export default function GovernancePage() {
         gas: gasOverride,
       });
       await publicClient.waitForTransactionReceipt({ hash });
-      await loadRWAGovernors(true);
+      if (address) {
+        await loadRWAGovernors(address, true);
+      }
     } catch (error: any) {
       const msg = (error?.message || '').toLowerCase();
       if (error?.code === 4001 || msg.includes('user denied') || msg.includes('user rejected')) {
@@ -620,9 +635,15 @@ export default function GovernancePage() {
 
   const handleManualRefresh = async () => {
     if (!isConnected || !address) return;
-    setLoading(true);
-    await loadRWAGovernors(true);
-    setLoading(false);
+    
+    try {
+      setLoading(true);
+      await loadRWAGovernors(address, true);
+    } catch (error) {
+      console.error('[Governance] Refresh error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
