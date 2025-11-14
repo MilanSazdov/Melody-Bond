@@ -93,6 +93,7 @@ contract RWAGovernor is
     }
 
     function votingPeriod() public pure override returns (uint256) {
+        // 120 seconds
         return 120;
     }
 

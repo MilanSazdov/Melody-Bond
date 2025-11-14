@@ -1,11 +1,7 @@
-// Contract addresses and ABIs for the RWA demo (Sepolia)
-// --- ABI imports ---
-// To keep the app buildable before ABIs are copied, we avoid static imports here.
-// After copying `rwa-backend/out` to `src/abis`, you can optionally replace the
-// placeholders below with static imports similar to:
-//   import DAOArtifact from './abis/DAO.sol/DAO.json'
 
-// --- Sepolia Contract Addresses (Updated with your new deployments) ---
+
+// --- Addresses ---
+// Update these addresses when contracts are redeployed!
 export const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || '9630914');
 export const GOV_TOKEN_ADDRESS = '0xD546E8a7f37dB24dE9B637cb79B10f1c5885A51d' as const;
 export const TIMELOCK_ADDRESS = '0x5F42C1C914F671394478646740Bd6d59b4F86Ce5' as const;
@@ -15,7 +11,6 @@ export const VOTING_PAYMASTER_ADDRESS = '0x3207EEcBE70f58C3b553b683Aa3827B216f88
 export const DISTRIBUTOR_ADDRESS = '0x679fddD3Ce087B15645D8fCb840AaE99a4aE9615' as const;
 export const RWA_GOVERNOR_LOGIC_ADDRESS = '0xc1328380074Dc46e35F3A8bb577Fba43b450d03b' as const;
 
-// NOTE: This address was not in your update list and remains unchanged.
 export const MARKET_ADDRESS = '0xcb7bdd15f77d7ac42b0b297eacde12e0132682b6' as const;
 
 // ERC-4337 EntryPoint (v0.6)
@@ -176,7 +171,6 @@ export const ENTRYPOINT_ABI = [
 	], outputs: [{ type: 'bytes32' }], stateMutability: 'view' },
 ] as const;
 
-// Deprecated Marketplace ABI retained only if needed elsewhere; governance flow does not use it.
 export const MARKETPLACE_ABI = [] as const;
 
 // ERC-6551 registry/account minimal ABIs for proposal payloads and TBA lookups

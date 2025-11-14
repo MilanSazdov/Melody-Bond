@@ -24,7 +24,7 @@ contract VotingPaymaster is IPaymaster {
     address public immutable dao;
     // Main DAO.sol address
     address public immutable entryPoint;
-    // --- Function selectors we sponsor ---
+    // Sponsored 
     bytes4 public castVoteSelector;
     bytes4 public castVoteWithReasonSelector;
     bytes4 public investSelector;
