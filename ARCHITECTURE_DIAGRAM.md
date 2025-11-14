@@ -188,11 +188,11 @@ STEP 1: Create Proposal
 │ buildWithdrawProposal(nftId, amount) │
 │                                      │
 │ Returns:                             │
-│ targets = [USDC, Distributor]       │
-│ values = [0, 0]                     │
-│ calldatas = [                       │
-│   approve(Distributor, amount),     │
-│   distribute(nftId, amount, USDC)   │
+│ targets = [USDC, Distributor]        │
+│ values = [0, 0]                      │
+│ calldatas = [                        │
+│   approve(Distributor, amount),      │
+│   distribute(nftId, amount, USDC)    │
 │ ]                                    │
 └──────────────────────────────────────┘
 
@@ -218,26 +218,26 @@ STEP 3: Execution
 
 STEP 4: Distribution
 ┌──────────────────────────────────────────────────────┐
-│ Distributor.distribute(nftId, 1000, USDC)           │
+│ Distributor.distribute(nftId, 1000, USDC)            │
 │                                                      │
-│ 1. transferFrom(TBA, Distributor, 1000)             │
-│ 2. Get investors = DAO.getInvestorList(proposalId)  │
-│ 3. totalShares = 1000 (Alice: 600, Bob: 400)       │
+│ 1. transferFrom(TBA, Distributor, 1000)              │
+│ 2. Get investors = DAO.getInvestorList(proposalId)   │
+│ 3. totalShares = 1000 (Alice: 600, Bob: 400)         │
 │ 4. For Alice:                                        │
-│    payout = (1000 × 600) / 1000 = 600               │
-│    USDC.transfer(Alice, 600) ✓                      │
+│    payout = (1000 × 600) / 1000 = 600                │
+│    USDC.transfer(Alice, 600) ✓                       │
 │ 5. For Bob:                                          │
-│    payout = (1000 × 400) / 1000 = 400               │
-│    USDC.transfer(Bob, 400) ✓                        │
+│    payout = (1000 × 400) / 1000 = 400                │
+│    USDC.transfer(Bob, 400) ✓                         │
 └──────────────────────────────────────────────────────┘
 
 RESULT:
 ┌──────────────────────────────────────┐
-│ TBA Balance:    1000 → 0 USDC       │
+│ TBA Balance:    1000 → 0 USDC        │
 │ Alice Wallet:   +600 USDC            │
 │ Bob Wallet:     +400 USDC            │
 │                                      │
-│ ✓ Proportional distribution!        │
+│ ✓ Proportional distribution!         │
 └──────────────────────────────────────┘
 
 
