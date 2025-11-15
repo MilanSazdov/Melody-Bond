@@ -10,7 +10,7 @@
 [![Status: Production Ready](https://img.shields.io/badge/Status-100%25_Complete-success)]()
 [![Tech: Account Abstraction](https://img.shields.io/badge/ERC-4337%20%7C%206551%20enabled-purple)]()
 
-[**🎥 WATCH THE LIVE DEMO**](https://youtu.be/M7pl_gSCFAQ) | [**🚀 LAUNCH DAPP**](https://melody-bond-app-link.com)
+[**🎥 WATCH THE LIVE DEMO**](https://youtu.be/EQ6aiHk17dc) | [**🚀 LAUNCH DAPP**](https://melody-bond-app-link.com)
 
 </div>
 
